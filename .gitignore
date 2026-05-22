@@ -1,0 +1,5 @@
+# Local IDE and agent configurations
+.antigravitycli/
+
+# Shaper authentication tokens
+.shaper-auth
