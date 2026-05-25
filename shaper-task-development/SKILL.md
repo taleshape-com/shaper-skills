@@ -11,7 +11,10 @@ Use this skill to design, implement, schedule, and maintain Shaper tasks. Unlike
 
 ## Workflow
 
-### 1. Schema Exploration
+### 1. Prerequisite Check
+- Ensure that the environment setup sub-skill (`shaper-setup`) has been successfully run, the configuration file `shaper.json` exists, and a valid `.shaper-auth` file is present.
+
+### 2. Schema Exploration
 - Before writing or updating a task, run the schema discovery command to understand the available tables, columns, and database objects:
   ```bash
   shaper schema
@@ -19,7 +22,7 @@ Use this skill to design, implement, schedule, and maintain Shaper tasks. Unlike
   shaper schema --config-file <PATH_TO_CONFIG>
   ```
 
-### 2. Task File Creation & Naming
+### 3. Task File Creation & Naming
 - **File Naming**: Task files must end with the suffix `.task.sql` (e.g., `sync_orders.task.sql`).
 - **File Location**: Organize tasks within sub-folders. The folder hierarchy is preserved when synced to Shaper.
 - **ID Generation (Mandatory)**: Immediately after creating the task file, run:
@@ -30,11 +33,11 @@ Use this skill to design, implement, schedule, and maintain Shaper tasks. Unlike
   ```
   This command automatically inserts/updates a header comment in the format `-- shaperid:<UUID>` at the top of the file. **Do not write, edit, or copy this comment manually.**
 
-### 3. Previews & Validation
+### 4. Previews & Validation
 > [!WARNING]
 > Because tasks can perform modifications and write operations to the database, they cannot be previewed or validated via the CLI. The `shaper preview` and `shaper validate` commands **cannot** be used for tasks.
 
-### 4. Verification & Testing
+### 5. Verification & Testing
 - To ensure task correctness before deploying:
   1. Review the SQL query structure and commands carefully.
   2. Ask the user to run the task manually via the Shaper UI using the **"Run"** button to check for execution errors.
