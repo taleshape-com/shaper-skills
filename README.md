@@ -4,6 +4,21 @@ This repository contains agent skills designed to enable AI assistants (such as 
 
 Shaper is a dashboarding tool where dashboards are defined as SQL files and run on DuckDB SQL, casting columns to custom types (`::TYPE`) to construct UI elements.
 
+## Install
+
+Simply copy the skills into your repository at the following location depending on your agent:
+
+| Agent       | Location          |
+-----------------------------------
+| Claude Code | `.claude/skills/` |
+| Cursor      | `.agents/skills/` |
+| Codex CLI   | `.agents/skills/` |
+| Gemini CLI  | `.agents/skills/` |
+| Antigravity | `.agents/skills/` |
+| Open Code   | `.agents/skills/` |
+| Qwen Code   | `.qwen/skills/`   |
+
+
 ## Available Skills
 
 This repository organizes the development workflow into three skills:
