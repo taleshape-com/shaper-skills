@@ -6,10 +6,11 @@ Shaper is a dashboarding tool where dashboards are defined as SQL files and run 
 
 ## Available Skills
 
-This repository organizes the development workflow into two skills:
+This repository organizes the development workflow into three skills:
 
-1. **[shaper-dashboard-development](file:///home/jorin/projects/taleshape/shaper-skills/shaper-dashboard-development/SKILL.md) (Main skill)**: Guides the agent through exploring schemas and existing dashboards, authoring files named `<Dashboard Name>.dashboard.sql` organized by folders, automatically generating IDs via the CLI, validating SQL queries, previewing dashboards in the browser, and following Git-based CI/CD deployment rules.
-2. **[shaper-setup](file:///home/jorin/projects/taleshape/shaper-skills/shaper-setup/SKILL.md) (Sub-skill)**: Ensures the environment is compatible (macOS or Linux), verifies the Shaper CLI is installed, configures `shaper.json` with instance URL and local directory settings, safely pulls dashboards, handles browser authentication, and configures `.gitignore` to prevent authentication tokens from being committed.
+1. **[shaper-dashboard-development](/shaper-dashboard-development/SKILL.md) (Main skill)**: Guides the agent through exploring schemas and existing dashboards, authoring files named `<Dashboard Name>.dashboard.sql` organized by folders, automatically generating IDs via the CLI, validating SQL queries, previewing dashboards in the browser, and following Git-based CI/CD deployment rules.
+2. **[shaper-setup](/shaper-setup/SKILL.md) (Sub-skill)**: Ensures the environment is compatible (macOS or Linux), verifies the Shaper CLI is installed, configures `shaper.json` with instance URL and local directory settings, safely pulls dashboards, handles browser authentication, and configures `.gitignore` to prevent authentication tokens from being committed.
+3. **[shaper-task-development](/shaper-task-development/SKILL.md) (Sub-skill)**: Guides the agent through creating and managing startup (`init`) and scheduled tasks (`*.task.sql`), installing community extensions (e.g. `http_client`), attaching to external databases (Postgres and DuckLake) via persistent secrets, creating commented views, and validating tasks manually via the Shaper UI.
 
 ---
 
@@ -22,9 +23,9 @@ AI agents and developers can utilize the following Shaper CLI commands within th
 | `shaper --version` | Checks if the Shaper CLI is installed and gets its version. |
 | `shaper pull --yes` | Pulls existing dashboards and tasks from the production system into the local directory. |
 | `shaper schema` | Prints the current database schema to explore available tables and columns. |
-| `shaper ids` | Scans all dashboard SQL files and injects unique `-- shaperid:<UUID>` header comments. |
-| `shaper validate <path/to/file.dashboard.sql>` | Executes the dashboard SQL locally to check for errors. |
-| `shaper preview <path/to/file.dashboard.sql>` | Compiles the dashboard and automatically opens a live preview in the browser. |
+| `shaper ids` | Scans all dashboard and task SQL files and injects unique `-- shaperid:<UUID>` header comments. |
+| `shaper validate <path/to/file.dashboard.sql>` | Executes the dashboard SQL locally to check for errors. *(Note: Not supported for task files)* |
+| `shaper preview <path/to/file.dashboard.sql>` | Compiles the dashboard and automatically opens a live preview in the browser. *(Note: Not supported for task files)* |
 
 *Note: All commands accept a `--config-file <PATH>` flag to override the default `./shaper.json` location.*
 
