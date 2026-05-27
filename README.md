@@ -9,7 +9,7 @@ Shaper is a dashboarding tool where dashboards are defined as SQL files and run 
 Simply copy the skills into your repository at the following location depending on your agent:
 
 | Agent       | Location          |
------------------------------------
+|-------------|-------------------|
 | Claude Code | `.claude/skills/` |
 | Cursor      | `.agents/skills/` |
 | Codex CLI   | `.agents/skills/` |
