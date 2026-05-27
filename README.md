@@ -6,7 +6,14 @@ Shaper is a dashboarding tool where dashboards are defined as SQL files and run 
 
 ## Install
 
-Simply copy the skills into your repository at the following location depending on your agent:
+Simply copy the skills into your repository at the following location depending on your agent.
+
+For example:
+```sh
+mkdir -p .claude/skills
+git clone git@github.com:taleshape-com/shaper-skills.git /tmp/shaper-skills
+mv /tmp/shaper-skills/* .claude/skills/
+```
 
 | Agent       | Location          |
 |-------------|-------------------|
