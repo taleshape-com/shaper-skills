@@ -49,6 +49,96 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
 
 ---
 
+## Best Practices
+
+Follow these guidelines to build clean, maintainable, and high-performing Shaper dashboards:
+
+- **Dashboard Title**: Start your dashboard file with a `SECTION` query to establish a clear main header/title for the dashboard.
+- **Top-Heavy Header Controls**: Keep filter components and global download buttons (CSV/PDF) clustered at the top of the file. This groups interactive components into a cohesive header. Only place interactive controls within individual sections on highly complex dashboards.
+- **Performance Optimization via Caching**: Define your filters first, then immediately cache the filtered subset of data into a temporary table using `CREATE TEMPORARY TABLE`. This ensures you only filter the dataset once, boosting query performance and avoiding repetitive `WHERE` clauses in subsequent chart queries.
+- **Clear Card Labels**: Precede most charts, metrics, and tables with a `LABEL` query to explain what the widget shows.
+- **Clean Axis Labels**: Visualizations look significantly cleaner without redundant axis labels. Omit axis labels by skipping the `AS alias` clause on axis or count columns when the data type or value is self-evident (e.g. date columns, counts).
+
+---
+
+## Full Dashboard Example
+
+The following example demonstrates a complete, production-ready Shaper dashboard integrating filters, layout sections, caching views, file downloads, metric cards, charts, and tables:
+
+```sql
+-- 1. Main Dashboard Header Section
+SELECT 'Shaper Demo Dashboard'::SECTION;
+
+-- 2. Header Filters (Interactivity)
+SELECT
+  min(created_at)::DATE::DATEPICKER_FROM AS start_date,
+  max(created_at)::DATE::DATEPICKER_TO AS end_date,
+FROM sessions;
+
+SELECT 'Category'::LABEL;
+SELECT category::DROPDOWN_MULTI AS category
+FROM sessions
+GROUP BY category
+ORDER BY category;
+
+-- 3. Caching filtered data for performance
+CREATE TEMP TABLE dataset AS (
+  SELECT * FROM sessions
+    WHERE category IN getvariable('category')
+      AND created_at BETWEEN getvariable('start_date') AND getvariable('end_date')
+);
+
+-- 4. Utility/Download Actions
+SELECT ('sessions-' || today())::DOWNLOAD_CSV AS "CSV";
+SELECT * FROM dataset;
+
+SELECT ('sessions-dashboard-' || today())::DOWNLOAD_PDF AS "PDF", 'xdek0446xo2oijlxlodvpo2g'::ID;
+
+-- 5. Primary Metric Cards & Tables
+SELECT count(*) AS "Total Sessions"
+FROM dataset;
+
+SELECT 'Summary'::LABEL;
+SELECT
+  category AS "Category",
+  count(*) AS "Sessions",
+  to_seconds(round(avg(duration))) AS "Avg Duration",
+FROM dataset
+GROUP BY "Category"
+ORDER BY "Sessions" DESC;
+
+SELECT 'Sessions By Time of Day'::LABEL;
+SELECT
+  date_trunc('hour', created_at)::TIME::XAXIS AS "Time of Day",
+  count(*)::BARCHART AS "Total Sessions",
+FROM dataset
+GROUP BY ALL
+ORDER BY ALL;
+
+-- 6. Secondary Section with Multi-category Visualizations
+SELECT ''::SECTION;
+
+SELECT 'Sessions per Week'::LABEL;
+SELECT
+  date_trunc('week', created_at)::XAXIS,
+  category::CATEGORY,
+  count(*)::BARCHART_STACKED,
+FROM dataset
+GROUP BY ALL
+ORDER BY ALL;
+
+SELECT 'Average Session Duration per Week'::LABEL;
+SELECT
+  date_trunc('week', created_at)::XAXIS,
+  category::CATEGORY,
+  to_seconds(round(avg(duration)))::LINECHART,
+FROM dataset
+GROUP BY ALL
+ORDER BY ALL;
+```
+
+---
+
 ## SQL & Dashboard Reference
 
 Each dashboard is a collection of SQL queries separated by `;`. All queries are executed using **DuckDB SQL**.
@@ -61,39 +151,78 @@ Cast SQL expression output to custom Shaper types using `::TYPE` (e.g., `SELECT 
 Any query returning multiple rows and columns is rendered as a table. Column headers map to column aliases.
 - **`PERCENT`**: Renders a float/double between 0 and 1 as a percentage (e.g. `col::PERCENT`).
 - **`TREND`**: Shows a trend arrow up/down.
-  ```sql
-  -- Example Table with Trend
-  SELECT
-    date::DATE AS "Date",
-    value AS "Value",
-    (value::DOUBLE / lag(value) OVER (ORDER BY date))::TREND AS "Trend"
-  FROM sales;
-  ```
+
+##### Examples:
+```sql
+-- Standard Table
+SELECT col0 AS "Date", col1 AS "Type", col2 AS "Amount"
+FROM (VALUES
+  ('2024-01-01'::DATE, 'Buy', 100),
+  ('2024-01-02'::DATE, 'Sell', 120)
+);
+
+-- Table with Percent and Trend indicators
+SELECT
+  date::DATE AS "Date",
+  value AS "Value",
+  (value::DOUBLE / lag(value) OVER (ORDER BY date))::TREND AS "Trend",
+  margin::PERCENT AS "Margin"
+FROM sales;
+```
 
 #### 2. Single Value Card
-If a query returns exactly 1 row and 1 column, it is rendered as a single large metric card.
+If a query returns exactly 1 row and 1 column, it is rendered as a single large metric card. Font size is auto-scaled to fit the screen.
 - **`PERCENT`**: Formats the value as a percentage.
-- **`COMPARE`**: Renders a comparison subtitle below the value.
-- **`TEXT_SMALL` / `TEXT_MEDIUM` / `TEXT_LARGE`**: Manually overrides auto-scaling font size.
-  ```sql
-  -- Example Single Value Card
-  SELECT 14500 AS "Active Users";
-  SELECT 0.12::PERCENT AS "Conversion Rate", 0.08::COMPARE AS "vs Last Month";
-  ```
+- **`COMPARE`**: Renders a comparison subtitle and trend indicator below the value.
+- **`TEXT_SMALL` / `TEXT_MEDIUM` / `TEXT_LARGE`**: Overrides the automatic scaling to make cards visually consistent.
+- **Left-Alignment Trick**: Ending string values with a newline `\n` forces left alignment even for short text.
+
+##### Examples:
+```sql
+-- Standard Single Value Card
+SELECT 14500 AS "Active Users";
+
+-- Percentage Value with a Comparison Subtitle
+SELECT
+  0.85::PERCENT AS "Conversion Rate",
+  0.08::COMPARE AS "vs Last Month";
+
+-- Overriding Font Sizes and Left-Aligning Text
+SELECT 'Medium Text
+'::TEXT_MEDIUM AS "Label";
+```
 
 #### 3. Bar Chart
 Renders vertical or horizontal bars. Can be grouped or stacked.
 - **`XAXIS` / `YAXIS`**: X-axis for vertical charts, Y-axis for horizontal charts (dimensions).
-- **`BARCHART`**: The numeric value defining the length of the bar.
-- **`CATEGORY`**: Groups data into categories, showing a legend.
+- **`BARCHART`**: The numeric/interval value defining the length of the bar.
+- **`CATEGORY`**: Groups data into categories and displays a legend. Setting to `NULL` or empty string hides that category from the legend (useful for selective coloring).
 - **`BARCHART_STACKED`**: Stacks categories on top of each other.
 - **`BARCHART_PERCENT` / `BARCHART_STACKED_PERCENT`**: Bounds the chart axis to 100% (values should be 0 to 1).
-- **`COLOR`**: Text/hex code to set bar color.
-  ```sql
-  -- Vertical Grouped Bar Chart
-  SELECT month::XAXIS, count::BARCHART, category::CATEGORY
-  FROM monthly_stats;
-  ```
+- **`COLOR`**: Sets the color for a category or bar (hex/color name).
+
+##### Examples:
+```sql
+-- Vertical Grouped Bar Chart
+SELECT month::XAXIS, count::BARCHART, category::CATEGORY
+FROM monthly_stats;
+
+-- Horizontal Bar Chart (YAXIS)
+SELECT region::YAXIS, revenue::BARCHART
+FROM regional_revenue;
+
+-- Stacked Percent Bar Chart
+SELECT month::XAXIS, ratio::BARCHART_STACKED_PERCENT, status::CATEGORY
+FROM project_status;
+
+-- Custom Category Colors and Hiding Specific Categories from Legend
+SELECT
+  month::XAXIS,
+  count::BARCHART,
+  CASE WHEN priority = 'High' THEN 'High' ELSE NULL END::CATEGORY,
+  color::COLOR
+FROM tasks;
+```
 
 #### 4. Line Chart
 Identical to Bar Charts but represents trends over time. Does not support horizontal `YAXIS` or stacked forms.
@@ -101,118 +230,214 @@ Identical to Bar Charts but represents trends over time. Does not support horizo
 - **`LINECHART` / `LINECHART_PERCENT`**: The numeric/percentage value column.
 - **`CATEGORY`**: Renders multiple lines.
 - **`COLOR`**: Category line colors.
-  ```sql
-  -- Line Chart with categories
-  SELECT date::XAXIS, active_users::LINECHART, tier::CATEGORY, color::COLOR
-  FROM active_tiers;
-  ```
+- **`BAND_LOWER` / `BAND_UPPER`**: Displays a confidence band for a line. Column aliases can define labels (e.g. `Lower SD`, `Upper SD`). Set to `NULL` to hide the band for specific categories/lines.
+
+##### Examples:
+```sql
+-- Standard Line Chart
+SELECT date::XAXIS, count::LINECHART FROM active_users;
+
+-- Line Chart with categories and custom colors
+SELECT date::XAXIS, active_users::LINECHART, tier::CATEGORY, '#19b2ee'::COLOR
+FROM active_tiers;
+
+-- Line Chart with confidence bands (Target line gets band, Actual does not)
+SELECT
+  date::TIMESTAMP::XAXIS,
+  value::LINECHART,
+  metric::CATEGORY,
+  lower_bound::BAND_LOWER AS "-1 SD",
+  upper_bound::BAND_UPPER AS "+1 SD"
+FROM performance_metrics;
+```
 
 #### 5. Box Plots
-Visualizes distribution of a dataset. Calculated via the `BOXPLOT()` aggregate function.
-- **`BOXPLOT(val)`**: Renders boxes (min, max, median, Q1, Q3).
-- **Outliers**: Pass `outlier_info := MAP {'label': col}` to show outlier points on hover.
-  ```sql
-  -- Box plot grouping values by region
-  SELECT region::XAXIS, BOXPLOT(revenue, outlier_info := MAP {'Client': client_name})
-  FROM regional_data
-  GROUP BY region;
-  ```
+Visualizes distribution of a dataset. Calculated via the aggregate `BOXPLOT()` function.
+- **`BOXPLOT(val)`**: Renders boxes showing min, max, median, Q1, Q3.
+- **Outliers**: Pass `outlier_info := MAP {'label': col}` to show outlier points on hover with the custom metadata. Pass an empty map `MAP {}` to just show outlier points without custom info. Outliers are defined as values falling outside the 1.5 IQR.
+
+##### Examples:
+```sql
+-- Simple Box Plot (no outlier hover detail)
+SELECT region::XAXIS, BOXPLOT(revenue)
+FROM regional_data
+GROUP BY region;
+
+-- Box Plot with Outliers & Hover Metadata
+SELECT region::XAXIS, BOXPLOT(revenue, outlier_info := MAP {'Client': client_name})
+FROM regional_data
+GROUP BY region;
+```
 
 #### 6. Annotations
 Draw mark lines on Bar/Line charts. Place annotation queries *before* the main chart query.
 - **`XLINE`**: Vertical line on the X-axis.
 - **`YLINE`**: Horizontal line on the Y-axis.
 - **`LABEL`**: Label displaying next to the line.
-  ```sql
-  SELECT '2026-11-27'::TIMESTAMP::XLINE, 'Black Friday'::LABEL;
-  SELECT date::XAXIS, sales::LINECHART FROM daily_sales;
-  ```
+
+##### Examples:
+```sql
+-- Vertical Annotation Line (XLINE) on a Timeline
+SELECT '2026-11-27'::TIMESTAMP::XLINE, 'Black Friday'::LABEL;
+SELECT date::XAXIS, sales::LINECHART FROM daily_sales;
+
+-- Horizontal Annotation Line (YLINE) as a Threshold
+SELECT 85::YLINE, 'Target Goal'::LABEL;
+SELECT month::XAXIS, revenue::BARCHART FROM monthly_revenue;
+```
 
 #### 7. Gauge
-Shows progress towards a goal or value distribution across segments.
-- **`GAUGE` / `GAUGE_PERCENT`**: Renders progress.
+Shows progress towards a goal or status distribution.
+- **`GAUGE` / `GAUGE_PERCENT`**: Renders progress value.
 - **`RANGE`**: Custom range intervals, e.g. `[0, 50, 100]::RANGE`.
-- **`COLORS`**: Colors for range segments. Must contain **one less** element than `RANGE`.
-- **`LABELS`**: Labels for range segments. Must contain **one less** element than `RANGE`.
-  ```sql
-  -- Colored Gauge
-  SELECT
-    78::GAUGE,
-    [0, 50, 80, 100]::RANGE,
-    ['#ee5674', '#ffd26a', '#6cbc87']::COLORS,
-    ['Poor', 'Fair', 'Excellent']::LABELS;
-  ```
+- **`COLORS`**: Segment colors. Must contain **one less** element than `RANGE`.
+- **`LABELS`**: Segment labels. Must contain **one less** element than `RANGE`.
+
+##### Examples:
+```sql
+-- Standard Gauge with custom Range
+SELECT 4::GAUGE, [0, 10]::RANGE;
+
+-- Percentage Gauge (Range defaults to 0% - 100%)
+SELECT 0.22::GAUGE_PERCENT AS "CPU Usage";
+
+-- Segmented, Colored Status Gauge
+SELECT
+  78::GAUGE,
+  [0, 50, 80, 100]::RANGE,
+  ['#ee5674', '#ffd26a', '#6cbc87']::COLORS,
+  ['Poor', 'Fair', 'Excellent']::LABELS;
+```
 
 #### 8. Pie Chart & Donut Chart
 Shows category distributions. Donut charts display the total aggregate sum in the center.
-- **`PIECHART` / `DONUTCHART`**: Value column.
+- **`PIECHART` / `DONUTCHART`**: Value column (numeric).
 - **`PIECHART_PERCENT` / `DONUTCHART_PERCENT`**: Percentage columns.
 - **`CATEGORY`**: Category names. Categories `< 5%` are automatically grouped under "Other".
 - **`COLOR`**: Slice colors.
-  ```sql
-  SELECT tier::CATEGORY, users::DONUTCHART, '#FF9933'::COLOR FROM user_tiers;
-  ```
+
+##### Examples:
+```sql
+-- Pie Chart with custom Colors
+SELECT country::CATEGORY, visitors::PIECHART, color::COLOR FROM visitor_stats;
+
+-- Donut Chart with percentage values
+SELECT tier::CATEGORY, ratio::DONUTCHART_PERCENT AS "Ratio" FROM user_tiers;
+```
 
 ### Interactive Filtering
 
 Filters define variables that can be accessed in subsequent queries using `getvariable('variable_name')` (returned as matching DuckDB types).
 
 - **`DATEPICKER`**: Single date selector. Returns `DATE`.
-  ```sql
-  SELECT today()::DATEPICKER AS my_date;
-  -- Usage: WHERE date = getvariable('my_date')
-  ```
-- **`DATEPICKER_FROM` & `DATEPICKER_TO`**: Date range selector.
-  ```sql
-  SELECT (today() - 7)::DATEPICKER_FROM AS "from", today()::DATEPICKER_TO AS "to";
-  -- Usage: WHERE date BETWEEN getvariable('from') AND getvariable('to')
-  ```
-- **`DROPDOWN`**: Drop-down menu. Returns `VARCHAR`. Use `UNION ALL` to define a default value.
-  ```sql
-  SELECT 'All Categories'::DROPDOWN AS selected_cat
-  UNION ALL
-  (SELECT category FROM items GROUP BY category ORDER BY category);
-  ```
-- **`DROPDOWN_MULTI`**: Multi-select dropdown. Returns a list/array of `VARCHAR` elements.
+- **`DATEPICKER_FROM` & `DATEPICKER_TO`**: Date range selector. Returns two `DATE` variables.
+- **`DROPDOWN`**: Single-select drop-down menu. Returns `VARCHAR`. Use `UNION ALL` to define custom default values.
+- **`DROPDOWN` with distinct value vs label**: Map distinct labels to dropdown values using the `::LABEL` type.
+- **`DROPDOWN_MULTI`**: Multi-select dropdown. Returns a list/array of `VARCHAR` elements. Use `IN` to query.
   - Optional **`HINT`**: Displays additional text alongside options (e.g. item count).
-  ```sql
-  SELECT category::DROPDOWN_MULTI AS selected_cats, count(*)::HINT FROM items GROUP BY category;
-  -- Usage: WHERE category IN getvariable('selected_cats')
-  ```
 - **`INPUT`**: Text input field. Returns `VARCHAR` (or `NULL` if empty).
-  ```sql
-  SELECT 'Search items...'::INPUT AS search_term;
-  -- Usage: WHERE name LIKE '%' || getvariable('search_term') || '%'
-  ```
+
+##### Examples:
+```sql
+-- 1. Date Picker
+SELECT today()::DATEPICKER AS select_date;
+-- Usage: WHERE date = getvariable('select_date')
+
+-- 2. Date Range Picker
+SELECT (today() - 7)::DATEPICKER_FROM AS "from", today()::DATEPICKER_TO AS "to";
+-- Usage: WHERE date BETWEEN getvariable('from') AND getvariable('to')
+
+-- 3. Dropdown with Custom Default Value
+SELECT 'All Categories'::DROPDOWN AS selected_cat
+UNION ALL
+(SELECT category FROM items GROUP BY category ORDER BY category);
+-- Usage: WHERE category = getvariable('selected_cat') OR getvariable('selected_cat') = 'All Categories'
+
+-- 4. Dropdown with distinct label and value (Value is number, Label is month name)
+SELECT
+  EXTRACT(MONTH FROM range)::TEXT::DROPDOWN AS month,
+  strftime(range, '%B')::LABEL
+FROM range(DATE '2024-01-01', DATE '2025-01-01', INTERVAL 1 MONTH);
+
+-- 5. Multi-select Dropdown with Hint
+SELECT category::DROPDOWN_MULTI AS selected_cats, count(*)::HINT FROM items GROUP BY category;
+-- Usage: WHERE category IN getvariable('selected_cats')
+
+-- 6. Text Input Filter
+SELECT 'Search items...'::INPUT AS search_term;
+-- Usage: WHERE name LIKE '%' || getvariable('search_term') || '%'
+```
 
 ### Downloads
 
 Render download buttons to trigger data extraction.
-- **`DOWNLOAD_CSV` / `DOWNLOAD_XLSX`**: Creates a button. The following query defines the downloaded data.
-  ```sql
-  SELECT 'Export Sales'::DOWNLOAD_CSV;
-  SELECT * FROM daily_sales;
-  ```
-- **`DOWNLOAD_PDF`**: Triggers a PDF layout download of the dashboard (or another dashboard using `ID`).
-  ```sql
-  SELECT 'Download Report'::DOWNLOAD_PDF, '<TARGET_DASHBOARD_UUID>'::ID AS my_pdf;
-  ```
+- **`DOWNLOAD_CSV` / `DOWNLOAD_XLSX`**: Creates a download button for tabular data. The string cast defines the filename, and the column alias defines the button label. The next query defines the actual data returned.
+- **`DOWNLOAD_PDF`**: Triggers a PDF download of the dashboard layout.
+  - **`ID`**: Download a *different* dashboard (using its UUID) instead of the current one. Applied filters are matched across dashboards.
+
+##### Examples:
+```sql
+-- Tabular Data Downloads (CSV and XLSX)
+SELECT concat('sales-report-', today())::DOWNLOAD_CSV AS "Export CSV";
+SELECT date, amount FROM daily_sales;
+
+-- PDF Download button targeting a different dashboard ID
+SELECT 'Download PDF Summary'::DOWNLOAD_PDF, 'd7b1b36b-74b8-4c9f-863a-23efbe9ff579'::ID AS my_pdf;
+```
 
 ### Layout & Utility Commands
 
-- **`SECTION`**: Groups subsequent cards/tables. Use `SELECT 'Section Title'::SECTION;`. If the query returns no rows (e.g., `WHERE FALSE`), the entire section and its queries are hidden.
-- **`LABEL`**: Sets a card or filter's header text when queried right before the target card.
-- **`PLACEHOLDER`**: Injects blank spaces into the layout grid: `SELECT ''::PLACEHOLDER;`.
-- **`HEADER_IMAGE`**: Sets dashboard logo (URL or base64 URL): `SELECT 'logo_url'::HEADER_IMAGE;`.
-- **`FOOTER_LINK`**: Displays a footer link on screens and PDFs: `SELECT 'link_url'::FOOTER_LINK;`.
-- **`RELOAD`**: Sets auto-reload interval: `SELECT (INTERVAL '5 minutes')::RELOAD;`.
+- **`SECTION`**: Groups subsequent cards/tables. Use `SELECT 'Section Title'::SECTION;`.
+  - **Hiding Sections**: If a section query returns no rows (e.g., `WHERE FALSE`), the entire section is hidden.
+- **`LABEL`**: Injects headers for cards or filters. Place right before the target card/filter query.
+- **`PLACEHOLDER`**: Injects blank spaces in the grid layout to align cards vertically.
+- **`HEADER_IMAGE`**: Sets dashboard logo (URL or base64 URL) displayed on screens and every page of PDFs.
+- **`FOOTER_LINK`**: Displays a footer link on screens and PDFs (URLs or mailto).
+- **`RELOAD`**: Sets auto-reload interval (TIMESTAMP or INTERVAL).
+
+##### Examples:
+```sql
+-- 1. Section Header and Conditional Hiding
+SELECT 'Revenue Metrics'::SECTION WHERE (SELECT sum(revenue) FROM daily_sales) > 0;
+
+-- 2. Labeling a Single Value Card
+SELECT 'Monthly Target'::LABEL;
+SELECT 50000 AS "Target";
+
+-- 3. Injecting a Grid Placeholder to align cards
+SELECT 200 AS "This Week";
+SELECT ''::PLACEHOLDER;
+SELECT 150 AS "Last Week";
+
+-- 4. Logo Header & Footer Link
+SELECT 'https://example.com/logo.png'::HEADER_IMAGE;
+SELECT 'https://example.com/support'::FOOTER_LINK;
+
+-- 5. Auto Reload
+SELECT (INTERVAL '5 minutes')::RELOAD;
+```
 
 ### Non-SELECT Statements (Metadata & Exploration)
 
-- **`DESCRIBE <table>`**: Returns a table's schema (columns, types, nullability).
-- **`SUMMARIZE <table>`**: Returns detailed statistics (mean, stddev, range) for all columns.
-- **`SHOW TABLES` / `SHOW ALL TABLES`**: List available tables.
-- **`CREATE TEMPORARY TABLE <name> AS (<query>)`**: Caches intermediate results in memory.
-- **`CREATE TEMPORARY VIEW <name> AS (<query>)`**: Creates a reusable view logic.
-- **`SET VARIABLE <name> = (<query>)`**: Updates variable value for subsequent queries.
-- **`USE <database>[.<schema>]`**: Switches context so you can query without prefixing table names.
+These DuckDB statements do not render UI cards but help organize code or explore schemas during development.
+
+- **`DESCRIBE <table>`**: Returns schema details (columns, types, nullability) as a table.
+- **`SUMMARIZE <table>`**: Returns statistics (mean, stddev, range) for columns.
+- **`SHOW TABLES` / `SHOW ALL TABLES`**: Lists available tables.
+- **`CREATE TEMPORARY TABLE <name> AS (<query>)`**: Caches intermediate results in memory for speed and reuse.
+- **`CREATE TEMPORARY VIEW <name> AS (<query>)`**: Creates reusable logic without caching in memory.
+- **`SET VARIABLE <name> = (<query>)`**: Assigns a variable value for subsequent queries.
+- **`USE <database>[.<schema>]`**: Switches database context to avoid prefixing table names.
+
+##### Examples:
+```sql
+-- Cache pre-filtered data for reuse across multiple charts
+CREATE TEMP TABLE dataset AS (
+  SELECT * FROM sessions
+  WHERE created_at BETWEEN getvariable('from') AND getvariable('to')
+);
+
+-- Show schema and database tables
+DESCRIBE users;
+SHOW TABLES;
+```

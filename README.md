@@ -22,7 +22,7 @@ mv /tmp/shaper-skills/* .claude/skills/
 | Codex CLI   | `.agents/skills/` |
 | Gemini CLI  | `.agents/skills/` |
 | Antigravity | `.agents/skills/` |
-| Open Code   | `.agents/skills/` |
+| OpenCode    | `.agents/skills/` |
 | Qwen Code   | `.qwen/skills/`   |
 
 
