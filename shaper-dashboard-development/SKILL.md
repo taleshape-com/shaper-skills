@@ -251,7 +251,39 @@ SELECT
 FROM performance_metrics;
 ```
 
-#### 5. Box Plots
+#### 5. Scatter Plot
+Visualizes data points plotted on X and Y axes, useful for showing correlations, distributions, and clusters. Supports multiple categories with custom colors.
+- **`XAXIS` / `YAXIS`**: Dimension column (VARCHAR, TIMESTAMP, TIME, or numeric). Often a time dimension for XAXIS.
+- **`SCATTERPLOT`**: The numeric or INTERVAL value to plot.
+- **`SCATTERPLOT_PERCENT`**: Displays values as percentages (values should be between 0 and 1, chart axis bounded to 100%).
+- **`CATEGORY`**: Groups data points into multiple series with a legend.
+- **`COLOR`**: Assigns custom colors to categories or individual points.
+- Hover tooltips automatically show additional columns not used in the plot definition.
+
+##### Examples:
+```sql
+-- Basic Scatter Plot with time on X-axis
+SELECT ts::XAXIS, val::SCATTERPLOT
+FROM measurements;
+
+-- Multi-category Scatter Plot with custom colors
+SELECT
+  ts::XAXIS,
+  val::SCATTERPLOT,
+  cat::CATEGORY,
+  color::COLOR
+FROM (VALUES
+    ('2026-07-09 10:00:00'::TIMESTAMP, 10.5, 'Group A', '#19b2ee'),
+    ('2026-07-09 10:15:00'::TIMESTAMP, 15.2, 'Group B', '#ee5674'),
+    ('2026-07-09 11:00:00'::TIMESTAMP, 12.0, 'Group A', '#19b2ee')
+) AS t(ts, val, cat, color);
+
+-- Percentage Scatter Plot
+SELECT date::XAXIS, conversion_rate::SCATTERPLOT_PERCENT, segment::CATEGORY
+FROM daily_metrics;
+```
+
+#### 6. Box Plots
 Visualizes distribution of a dataset. Calculated via the aggregate `BOXPLOT()` function.
 - **`BOXPLOT(val)`**: Renders boxes showing min, max, median, Q1, Q3.
 - **Outliers**: Pass `outlier_info := MAP {'label': col}` to show outlier points on hover with the custom metadata. Pass an empty map `MAP {}` to just show outlier points without custom info. Outliers are defined as values falling outside the 1.5 IQR.
@@ -269,7 +301,7 @@ FROM regional_data
 GROUP BY region;
 ```
 
-#### 6. Annotations
+#### 7. Annotations
 Draw mark lines on Bar/Line charts. Place annotation queries *before* the main chart query.
 - **`XLINE`**: Vertical line on the X-axis.
 - **`YLINE`**: Horizontal line on the Y-axis.
@@ -286,7 +318,7 @@ SELECT 85::YLINE, 'Target Goal'::LABEL;
 SELECT month::XAXIS, revenue::BARCHART FROM monthly_revenue;
 ```
 
-#### 7. Gauge
+#### 8. Gauge
 Shows progress towards a goal or status distribution.
 - **`GAUGE` / `GAUGE_PERCENT`**: Renders progress value.
 - **`RANGE`**: Custom range intervals, e.g. `[0, 50, 100]::RANGE`.
@@ -309,7 +341,7 @@ SELECT
   ['Poor', 'Fair', 'Excellent']::LABELS;
 ```
 
-#### 8. Pie Chart & Donut Chart
+#### 9. Pie Chart & Donut Chart
 Shows category distributions. Donut charts display the total aggregate sum in the center.
 - **`PIECHART` / `DONUTCHART`**: Value column (numeric).
 - **`PIECHART_PERCENT` / `DONUTCHART_PERCENT`**: Percentage columns.
