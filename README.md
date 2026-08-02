@@ -49,5 +49,5 @@ AI agents and developers can utilize the following Shaper CLI commands within th
 | `shaper validate <path/to/file.dashboard.sql>` | Executes the dashboard SQL locally to check for errors. *(Note: Not supported for task files)* |
 | `shaper preview <path/to/file.dashboard.sql>` | Compiles the dashboard and automatically opens a live preview in the browser. *(Note: Not supported for task files)* |
 
-*Note: All commands accept a `--config-file <PATH>` flag to override the default `./shaper.json` location.*
+*Note: All commands accept a `--config-file <PATH>` flag to override the default `./shaper.json` location, as well as a `--url <URL>` flag to overwrite the instance URL defined in the configuration file.*
 

@@ -24,6 +24,7 @@ Follow these steps sequentially to setup the environment:
 
 ### 3. Manage Configuration File (`shaper.json`)
 - **Config Override**: Commands take an optional `--config-file` flag to override the default file path. Check if a custom config file path is passed/configured. The default path is `./shaper.json`.
+- **URL Override & Instance Selection**: Commands take an optional `--url <URL>` flag to overwrite the instance URL defined in `shaper.json` with another URL. If the user specifies or indicates that they want to overwrite or target a different Shaper instance (e.g., staging vs. production), adapt all Shaper commands by passing `--url <URL>`.
 - **Action**: Check if the configuration file exists at `./shaper.json` (or the path specified by `--config-file`).
 - **If the config file does NOT exist**:
   1. Ask the user for the **URL of their Shaper instance** and the **directory to use** (default directory is `.`).
@@ -45,6 +46,8 @@ Follow these steps sequentially to setup the environment:
   - If git status is clean, run the pull command:
     ```bash
     shaper pull --yes
+    # Or, if overwriting the instance URL:
+    shaper pull --yes --url <URL>
     # Or, if using a custom config:
     shaper pull --yes --config-file <PATH_TO_CONFIG>
     ```

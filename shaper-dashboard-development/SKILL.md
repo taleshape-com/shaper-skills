@@ -11,9 +11,10 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
 
 ### 1. Prerequisite Check
 - Ensure that the environment setup sub-skill (`shaper-setup`) has been successfully run, the configuration file `shaper.json` exists, and a valid `.shaper-auth` file is present.
+- **Instance URL Overwriting**: All Shaper CLI commands accept an optional `--url <URL>` flag to overwrite the instance URL defined in `shaper.json`. If the user specifies that they want to overwrite or target a specific Shaper instance URL, adapt all commands below by passing `--url <URL>`.
 
 ### 2. Context Gathering
-- **Schema Discovery**: Run the command `shaper schema` (or `shaper schema --config-file ...`) to inspect the database schema, tables, and column structures available to query.
+- **Schema Discovery**: Run the command `shaper schema` (or `shaper schema --url <URL>` / `shaper schema --config-file ...`) to inspect the database schema, tables, and column structures available to query.
 - **Style Alignment**: Search the workspace for any existing `*.dashboard.sql` files. Inspect them to understand existing dashboard patterns, styles, common metrics, and tables.
 - **Embedding & Scope Clarification**: Embedding is the most common use case for Shaper dashboards. Always clarify whether the dashboard will be embedded into an application and determine which variables will be preset directly in the JWT token (e.g., `tenant_id`, `organization_id`, `user_id`, `role`, `allowed_tenants`). Embedding variables can be a **single string** or a **list of strings**. When a variable is a list of strings, use a SQL `IN` check (e.g., `WHERE tenant_id IN getvariable('allowed_tenants')`). Ensure that all data queries are designed to restrict what users are allowed to see based on these preset variables.
 
@@ -23,6 +24,8 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
 - **ID Generation (Mandatory)**: Immediately after creating the dashboard file (even if it is empty or has a simple skeleton), run:
   ```bash
   shaper ids
+  # Or, if overwriting the instance URL:
+  shaper ids --url <URL>
   # Or, if using a custom config:
   shaper ids --config-file <PATH_TO_CONFIG>
   ```
@@ -32,6 +35,8 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
 - **Action**: Before presenting a dashboard or after making any changes to a dashboard file, run the validation tool to check for SQL or execution errors:
   ```bash
   shaper validate path/to/Dashboard.dashboard.sql
+  # Or, if overwriting the instance URL:
+  shaper validate path/to/Dashboard.dashboard.sql --url <URL>
   # Or, if using a custom config:
   shaper validate path/to/Dashboard.dashboard.sql --config-file <PATH_TO_CONFIG>
   ```
@@ -41,6 +46,8 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
 - Run:
   ```bash
   shaper preview path/to/Dashboard.dashboard.sql
+  # Or, if overwriting the instance URL:
+  shaper preview path/to/Dashboard.dashboard.sql --url <URL>
   # Or, if using a custom config:
   shaper preview path/to/Dashboard.dashboard.sql --config-file <PATH_TO_CONFIG>
   ```

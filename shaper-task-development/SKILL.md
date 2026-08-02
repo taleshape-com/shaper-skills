@@ -13,11 +13,14 @@ Use this skill to design, implement, schedule, and maintain Shaper tasks. Unlike
 
 ### 1. Prerequisite Check
 - Ensure that the environment setup sub-skill (`shaper-setup`) has been successfully run, the configuration file `shaper.json` exists, and a valid `.shaper-auth` file is present.
+- **Instance URL Overwriting**: All Shaper CLI commands accept an optional `--url <URL>` flag to overwrite the instance URL defined in `shaper.json`. If the user specifies that they want to overwrite or target a specific Shaper instance URL, adapt all commands below by passing `--url <URL>`.
 
 ### 2. Schema Exploration
 - Before writing or updating a task, run the schema discovery command to understand the available tables, columns, and database objects:
   ```bash
   shaper schema
+  # Or, if overwriting the instance URL:
+  shaper schema --url <URL>
   # Or, if using a custom config file:
   shaper schema --config-file <PATH_TO_CONFIG>
   ```
@@ -28,6 +31,8 @@ Use this skill to design, implement, schedule, and maintain Shaper tasks. Unlike
 - **ID Generation (Mandatory)**: Immediately after creating the task file, run:
   ```bash
   shaper ids
+  # Or, if overwriting the instance URL:
+  shaper ids --url <URL>
   # Or, if using a custom config:
   shaper ids --config-file <PATH_TO_CONFIG>
   ```
