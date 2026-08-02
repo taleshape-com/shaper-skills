@@ -1,6 +1,6 @@
 ---
 name: shaper-dashboard-development
-description: Build, validate, preview, and organize Shaper dashboards using DuckDB SQL and Shaper-specific types.
+description: Build, validate, preview, and organize Shaper dashboards using DuckDB SQL and Shaper-specific types, including embedded dashboards with JWT preset variables.
 ---
 
 # Shaper Dashboard Development Skill
@@ -15,6 +15,7 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
 ### 2. Context Gathering
 - **Schema Discovery**: Run the command `shaper schema` (or `shaper schema --config-file ...`) to inspect the database schema, tables, and column structures available to query.
 - **Style Alignment**: Search the workspace for any existing `*.dashboard.sql` files. Inspect them to understand existing dashboard patterns, styles, common metrics, and tables.
+- **Embedding & Scope Clarification**: Embedding is the most common use case for Shaper dashboards. Always clarify whether the dashboard will be embedded into an application and determine which variables will be preset directly in the JWT token (e.g., `tenant_id`, `organization_id`, `user_id`, `role`, `allowed_tenants`). Embedding variables can be a **single string** or a **list of strings**. When a variable is a list of strings, use a SQL `IN` check (e.g., `WHERE tenant_id IN getvariable('allowed_tenants')`). Ensure that all data queries are designed to restrict what users are allowed to see based on these preset variables.
 
 ### 3. Creating a Dashboard
 - **File Naming**: Create a file named `<Dashboard Name>.dashboard.sql` (e.g., `Active Users.dashboard.sql`).
@@ -28,20 +29,22 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
   This command inserts/updates a header comment in the format `-- shaperid:<UUID>` at the top of the file. **Do not write, edit, or copy this comment manually.**
 
 ### 4. Validation
-- **Action**: Before presenting a dashboard to the user, run the validation tool to check for SQL or execution errors:
+- **Action**: Before presenting a dashboard or after making any changes to a dashboard file, run the validation tool to check for SQL or execution errors:
   ```bash
   shaper validate path/to/Dashboard.dashboard.sql
   # Or, if using a custom config:
   shaper validate path/to/Dashboard.dashboard.sql --config-file <PATH_TO_CONFIG>
   ```
 
-### 5. Previewing
-- **Action**: Once the dashboard is valid, preview it locally. This command automatically opens the preview in the browser:
+### 5. Previewing (Mandatory After Every Change)
+- **Mandatory Action**: Whenever you create a new dashboard or make ANY updates or modifications to an existing dashboard file (e.g. layout adjustments, query fixes, adding metrics, or filter changes), you **MUST** generate a new preview for the user so they can immediately see the updated dashboard.
+- Run:
   ```bash
   shaper preview path/to/Dashboard.dashboard.sql
   # Or, if using a custom config:
   shaper preview path/to/Dashboard.dashboard.sql --config-file <PATH_TO_CONFIG>
   ```
+- **Rule**: Never end a turn or inform the user that changes are complete without executing `shaper preview` to render a fresh preview for the modified dashboard.
 
 ### 6. Git Hygiene & Deployment
 - **Deployment constraint**: **Never deploy dashboards directly.** Dashboards are synchronized through the CI/CD pipeline.
@@ -53,6 +56,8 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
 
 Follow these guidelines to build clean, maintainable, and high-performing Shaper dashboards:
 
+- **Embedded Dashboard Security**: Embedding into host applications is the primary use case for Shaper dashboards. When embedding, security and data access control rely on variables preset in the JWT token (e.g. `tenant_id` or `allowed_orgs`). Preset embedding variables can be a **single string** or a **list of strings**. Always access these variables with `getvariable('variable_name')` and apply strict filtering in your base queries or temp tables using `=` for single strings or `IN` for lists of strings (`WHERE col IN getvariable('allowed_orgs')`) to ensure users can only access authorized data.
+- **Mandatory Re-Preview After Edits**: Every time you modify or update a dashboard file, always run `shaper validate` followed by `shaper preview` to generate a new preview. Never make changes to a dashboard without generating a fresh preview for the user to review.
 - **Dashboard Title**: Start your dashboard file with a `SECTION` query to establish a clear main header/title for the dashboard.
 - **Top-Heavy Header Controls**: Keep filter components and global download buttons (CSV/PDF) clustered at the top of the file. This groups interactive components into a cohesive header. Only place interactive controls within individual sections on highly complex dashboards.
 - **Performance Optimization via Caching**: Define your filters first, then immediately cache the filtered subset of data into a temporary table using `CREATE TEMPORARY TABLE`. This ensures you only filter the dataset once, boosting query performance and avoiding repetitive `WHERE` clauses in subsequent chart queries.
@@ -81,10 +86,12 @@ FROM sessions
 GROUP BY category
 ORDER BY category;
 
--- 3. Caching filtered data for performance
+-- 3. Caching filtered data for performance & security
+-- Note: 'tenant_id' is preset directly in the JWT when embedding
 CREATE TEMP TABLE dataset AS (
   SELECT * FROM sessions
-    WHERE category IN getvariable('category')
+    WHERE tenant_id = getvariable('tenant_id')
+      AND category IN getvariable('category')
       AND created_at BETWEEN getvariable('start_date') AND getvariable('end_date')
 );
 
@@ -357,9 +364,18 @@ SELECT country::CATEGORY, visitors::PIECHART, color::COLOR FROM visitor_stats;
 SELECT tier::CATEGORY, ratio::DONUTCHART_PERCENT AS "Ratio" FROM user_tiers;
 ```
 
-### Interactive Filtering
+### Variables, Interactive Filtering & Embedding
 
-Filters define variables that can be accessed in subsequent queries using `getvariable('variable_name')` (returned as matching DuckDB types).
+Shaper dashboards use variables to dynamically filter data. All variables are accessed in DuckDB SQL queries using `getvariable('variable_name')` (returned as matching DuckDB types).
+
+#### Variable Sources
+
+1. **JWT Preset Variables (Embedded Dashboards)**: Embedding dashboards into host applications is the primary use case for Shaper dashboards. When embedded, the host application presets variables directly in the JWT payload (e.g. `tenant_id`, `organization_id`, `user_id`, `role`, `allowed_tenants`). These variables are set securely outside the user's control and MUST be used in `WHERE` clauses to strictly scope and restrict the data users are allowed to see.
+   - **Single String Variable**: When the variable contains a single string value (e.g. `'org_123'`), use standard equality: `WHERE organization_id = getvariable('organization_id')`.
+   - **List of Strings Variable**: When the variable contains a list of strings (e.g. `['tenant_a', 'tenant_b']`), use a SQL `IN` check: `WHERE tenant_id IN getvariable('allowed_tenants')`.
+2. **Interactive UI Filters**: Components rendered on the dashboard layout (such as `DATEPICKER`, `DROPDOWN`, or `INPUT`) expose variables that end users can manipulate interactively.
+
+#### UI Filter Types
 
 - **`DATEPICKER`**: Single date selector. Returns `DATE`.
 - **`DATEPICKER_FROM` & `DATEPICKER_TO`**: Date range selector. Returns two `DATE` variables.
@@ -370,34 +386,50 @@ Filters define variables that can be accessed in subsequent queries using `getva
 - **`INPUT`**: Text input field. Returns `VARCHAR` (or `NULL` if empty).
 
 ##### Examples:
+
 ```sql
--- 1. Date Picker
+-- 1. JWT Preset Variable - Single String (Row-Level Security)
+-- Access single string variable preset directly in the JWT token
+SELECT * FROM orders WHERE tenant_id = getvariable('tenant_id');
+
+-- 2. JWT Preset Variable - List of Strings (Multi-Tenant / Scope List Security)
+-- Access list of strings preset directly in the JWT token using SQL IN check
+SELECT * FROM orders WHERE organization_id IN getvariable('allowed_orgs');
+
+-- 3. Date Picker
 SELECT today()::DATEPICKER AS select_date;
 -- Usage: WHERE date = getvariable('select_date')
 
--- 2. Date Range Picker
+-- 4. Date Range Picker
 SELECT (today() - 7)::DATEPICKER_FROM AS "from", today()::DATEPICKER_TO AS "to";
 -- Usage: WHERE date BETWEEN getvariable('from') AND getvariable('to')
 
--- 3. Dropdown with Custom Default Value
+-- 5. Dropdown with Custom Default Value
 SELECT 'All Categories'::DROPDOWN AS selected_cat
 UNION ALL
 (SELECT category FROM items GROUP BY category ORDER BY category);
 -- Usage: WHERE category = getvariable('selected_cat') OR getvariable('selected_cat') = 'All Categories'
 
--- 4. Dropdown with distinct label and value (Value is number, Label is month name)
+-- 6. Dropdown with distinct label and value (Value is number, Label is month name)
 SELECT
   EXTRACT(MONTH FROM range)::TEXT::DROPDOWN AS month,
   strftime(range, '%B')::LABEL
 FROM range(DATE '2024-01-01', DATE '2025-01-01', INTERVAL 1 MONTH);
 
--- 5. Multi-select Dropdown with Hint
+-- 7. Multi-select Dropdown with Hint
 SELECT category::DROPDOWN_MULTI AS selected_cats, count(*)::HINT FROM items GROUP BY category;
 -- Usage: WHERE category IN getvariable('selected_cats')
 
--- 6. Text Input Filter
+-- 8. Text Input Filter
 SELECT 'Search items...'::INPUT AS search_term;
 -- Usage: WHERE name LIKE '%' || getvariable('search_term') || '%'
+
+-- 9. Combining JWT Security & Interactive UI Filters in Cached Dataset
+CREATE TEMP TABLE dataset AS (
+  SELECT * FROM sessions
+  WHERE organization_id IN getvariable('allowed_orgs') -- List of strings in JWT
+    AND category IN getvariable('selected_cats')       -- Interactive UI filter
+);
 ```
 
 ### Downloads
