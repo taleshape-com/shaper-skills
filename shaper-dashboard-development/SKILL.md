@@ -16,7 +16,7 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
 ### 2. Context Gathering
 - **Schema Discovery**: Run the command `shaper schema` (or `shaper schema --url <URL>` / `shaper schema --config-file ...`) to inspect the database schema, tables, and column structures available to query.
 - **Style Alignment**: Search the workspace for any existing `*.dashboard.sql` files. Inspect them to understand existing dashboard patterns, styles, common metrics, and tables.
-- **Embedding & Scope Clarification**: Embedding is the most common use case for Shaper dashboards. Always clarify whether the dashboard will be embedded into an application and determine which variables will be preset directly in the JWT token (e.g., `tenant_id`, `organization_id`, `user_id`, `role`, `allowed_tenants`). Embedding variables can be a **single string** or a **list of strings**. When a variable is a list of strings, use a SQL `IN` check (e.g., `WHERE tenant_id IN getvariable('allowed_tenants')`). Ensure that all data queries are designed to restrict what users are allowed to see based on these preset variables.
+- **Embedding & Scope Clarification**: Embedding is the most common use case for Shaper dashboards. Always clarify whether the dashboard will be embedded into an application and determine which variables will be preset directly in the JWT token (e.g., `tenant_id`, `organization_id`, `user_id`, `role`, `allowed_tenants`). Embedding variables can be a **single string** or a **list of strings**. When a variable is a list of strings, use a SQL `IN` check (e.g., `WHERE tenant_id IN getvariable('allowed_tenants')`). Ensure that all data queries are designed to restrict what users are allowed to see based on these preset variables. In the preview view, the user is able to set these variables in the sidebar to test out what it looks like when embedded.
 
 ### 3. Creating a Dashboard
 - **File Naming**: Create a file named `<Dashboard Name>.dashboard.sql` (e.g., `Active Users.dashboard.sql`).
@@ -51,6 +51,7 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
   # Or, if using a custom config:
   shaper preview path/to/Dashboard.dashboard.sql --config-file <PATH_TO_CONFIG>
   ```
+- **Testing Embedded Variables**: When creating a dashboard for embedding, in the preview view the user is able to set the variables in the sidebar to test out what it looks like when embedded.
 - **Rule**: Never end a turn or inform the user that changes are complete without executing `shaper preview` to render a fresh preview for the modified dashboard.
 
 ### 6. Git Hygiene & Deployment
@@ -377,7 +378,7 @@ Shaper dashboards use variables to dynamically filter data. All variables are ac
 
 #### Variable Sources
 
-1. **JWT Preset Variables (Embedded Dashboards)**: Embedding dashboards into host applications is the primary use case for Shaper dashboards. When embedded, the host application presets variables directly in the JWT payload (e.g. `tenant_id`, `organization_id`, `user_id`, `role`, `allowed_tenants`). These variables are set securely outside the user's control and MUST be used in `WHERE` clauses to strictly scope and restrict the data users are allowed to see.
+1. **JWT Preset Variables (Embedded Dashboards)**: Embedding dashboards into host applications is the primary use case for Shaper dashboards. When embedded, the host application presets variables directly in the JWT payload (e.g. `tenant_id`, `organization_id`, `user_id`, `role`, `allowed_tenants`). These variables are set securely outside the user's control and MUST be used in `WHERE` clauses to strictly scope and restrict the data users are allowed to see. In the preview view, the user is able to set these variables in the sidebar to test out what it looks like when embedded.
    - **Single String Variable**: When the variable contains a single string value (e.g. `'org_123'`), use standard equality: `WHERE organization_id = getvariable('organization_id')`.
    - **List of Strings Variable**: When the variable contains a list of strings (e.g. `['tenant_a', 'tenant_b']`), use a SQL `IN` check: `WHERE tenant_id IN getvariable('allowed_tenants')`.
 2. **Interactive UI Filters**: Components rendered on the dashboard layout (such as `DATEPICKER`, `DROPDOWN`, or `INPUT`) expose variables that end users can manipulate interactively.
