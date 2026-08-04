@@ -166,6 +166,7 @@ Cast SQL expression output to custom Shaper types using `::TYPE` (e.g., `SELECT 
 
 #### 1. Tables (Default)
 Any query returning multiple rows and columns is rendered as a table. Column headers map to column aliases.
+Avoid using tables with many columns in layouts with multiple queries in a section.
 - **`PERCENT`**: Renders a float/double between 0 and 1 as a percentage (e.g. `col::PERCENT`).
 - **`TREND`**: Shows a trend arrow up/down.
 
@@ -501,7 +502,6 @@ These DuckDB statements do not render UI cards but help organize code or explore
 - **`CREATE TEMPORARY TABLE <name> AS (<query>)`**: Caches intermediate results in memory for speed and reuse.
 - **`CREATE TEMPORARY VIEW <name> AS (<query>)`**: Creates reusable logic without caching in memory.
 - **`SET VARIABLE <name> = (<query>)`**: Assigns a variable value for subsequent queries.
-- **`USE <database>[.<schema>]`**: Switches database context to avoid prefixing table names.
 
 ##### Examples:
 ```sql
