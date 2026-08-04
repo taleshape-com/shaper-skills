@@ -10,7 +10,9 @@ Use this skill to design, implement, validate, and preview Shaper dashboards. Sh
 ## Workflow
 
 ### 1. Prerequisite Check
-- Ensure that the environment setup sub-skill (`shaper-setup`) has been successfully run, the configuration file `shaper.json` exists, and a valid `.shaper-auth` file is present.
+- Ensure that the environment setup sub-skill (`shaper-setup`) has been successfully run and the configuration file `shaper.json` exists.
+- **Authentication**: Shaper CLI commands do not automatically log in the user. Always call `shaper login` before executing other CLI commands (`shaper schema`, `shaper ids`, `shaper validate`, `shaper preview`). Executing `shaper login` prompts the user to open a URL in their browser and confirm authentication (user action required).
+- **Authentication Error Handling**: If any CLI command fails to authenticate, execute `shaper login` and instruct the user to complete the browser authentication step before retrying.
 - **Instance URL Overwriting**: All Shaper CLI commands accept an optional `--url <URL>` flag to overwrite the instance URL defined in `shaper.json`. If the user specifies that they want to overwrite or target a specific Shaper instance URL, adapt all commands below by passing `--url <URL>`.
 
 ### 2. Context Gathering

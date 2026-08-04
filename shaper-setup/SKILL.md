@@ -38,7 +38,24 @@ Follow these steps sequentially to setup the environment:
      ```
   3. Ensure the JSON is properly formatted and saved.
 
-### 4. Git Status Check & Data Pulling
+### 4. Authentication (`shaper login`) & Git Hygiene
+- **Explicit Login Requirement**: Shaper CLI commands do not automatically log in the user. You must run `shaper login` before executing other CLI commands.
+- **Action**: Execute the login command:
+  ```bash
+  shaper login
+  # Or, if overwriting the instance URL:
+  shaper login --url <URL>
+  # Or, if using a custom config:
+  shaper login --config-file <PATH_TO_CONFIG>
+  ```
+- **User Action Required**: Executing `shaper login` prompts the user to open a URL and confirm authentication in their browser. Inform the user that they need to open the URL and approve the authentication request.
+- **Token Storage**: Successful authentication saves an auth token in a local `.shaper-auth` file (located in the same directory as the configuration or command invocation).
+- **Git Hygiene**:
+  - Check if `.shaper-auth` is added to your `.gitignore`.
+  - If `.gitignore` does not exist, create it.
+  - Append `.shaper-auth` to `.gitignore` if it is not already present, ensuring the token is never committed to version control.
+
+### 5. Git Status Check & Data Pulling
 - **Safety Rule**: To avoid overwriting work, never pull remote changes if there are uncommitted local edits.
 - **Action**: Check the repository's git status by running `git status --porcelain`.
 - **Handling**:
@@ -51,11 +68,4 @@ Follow these steps sequentially to setup the environment:
     # Or, if using a custom config:
     shaper pull --yes --config-file <PATH_TO_CONFIG>
     ```
-
-### 5. Authentication & Git Hygiene
-- **First Pull Behavior**: The first time `shaper pull --yes` runs, it will attempt to open a browser window for the user to confirm authentication.
-- **Token Storage**: Successful authentication saves an auth token in a local `.shaper-auth` file (located in the same directory as the configuration or command invocation).
-- **Git Hygiene**:
-  - Check if `.shaper-auth` is added to your `.gitignore`.
-  - If `.gitignore` does not exist, create it.
-  - Append `.shaper-auth` to `.gitignore` if it is not already present, ensuring the token is never committed to version control.
+- **Authentication Failure Handling**: If `shaper pull` (or any subsequent Shaper CLI command) fails due to authentication errors, call `shaper login` to prompt the user to authenticate before retrying.
