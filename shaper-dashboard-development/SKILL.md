@@ -68,10 +68,10 @@ Follow these guidelines to build clean, maintainable, and high-performing Shaper
 
 - **Embedded Dashboard Security**: Embedding into host applications is the primary use case for Shaper dashboards. When embedding, security and data access control rely on variables preset in the JWT token (e.g. `tenant_id` or `allowed_orgs`). Preset embedding variables can be a **single string** or a **list of strings**. Always access these variables with `getvariable('variable_name')` and apply strict filtering in your base queries or temp tables using `=` for single strings or `IN` for lists of strings (`WHERE col IN getvariable('allowed_orgs')`) to ensure users can only access authorized data.
 - **Mandatory Re-Preview After Edits**: Every time you modify or update a dashboard file, always run `shaper validate` followed by `shaper preview` to generate a new preview. Never make changes to a dashboard without generating a fresh preview for the user to review.
-- **Dashboard Title**: Start your dashboard file with a `SECTION` query to establish a clear main header/title for the dashboard.
+- **Dashboard Title**: Start your dashboard file with a `SECTION` query to establish a clear main header/title for the dashboard (optionally pair with `::SUBTITLE` for an explanatory subtitle).
 - **Top-Heavy Header Controls**: Keep filter components and global download buttons (CSV/PDF) clustered at the top of the file. This groups interactive components into a cohesive header. Only place interactive controls within individual sections on highly complex dashboards.
 - **Performance Optimization via Caching**: Define your filters first, then immediately cache the filtered subset of data into a temporary table using `CREATE TEMPORARY TABLE`. This ensures you only filter the dataset once, boosting query performance and avoiding repetitive `WHERE` clauses in subsequent chart queries.
-- **Clear Card Labels**: Precede most charts, metrics, and tables with a `LABEL` query to explain what the widget shows.
+- **Clear Card Labels & Subtitles**: Precede most charts, metrics, and tables with a `LABEL` query to explain what the widget shows. Add a `SUBTITLE` to provide additional context or explanation below a section title or a card label.
 - **Clean Axis Labels**: Visualizations look significantly cleaner without redundant axis labels. Omit axis labels by skipping the `AS alias` clause on axis or count columns when the data type or value is self-evident (e.g. date columns, counts).
 
 ---
@@ -82,7 +82,7 @@ The following example demonstrates a complete, production-ready Shaper dashboard
 
 ```sql
 -- 1. Main Dashboard Header Section
-SELECT 'Shaper Demo Dashboard'::SECTION;
+SELECT 'Shaper Demo Dashboard'::SECTION, 'Overview of recent user sessions and performance'::SUBTITLE;
 
 -- 2. Header Filters (Interactivity)
 SELECT
@@ -124,7 +124,7 @@ FROM dataset
 GROUP BY "Category"
 ORDER BY "Sessions" DESC;
 
-SELECT 'Sessions By Time of Day'::LABEL;
+SELECT 'Sessions By Time of Day'::LABEL, 'Hourly breakdown of user activity'::SUBTITLE;
 SELECT
   date_trunc('hour', created_at)::TIME::XAXIS AS "Time of Day",
   count(*)::BARCHART AS "Total Sessions",
@@ -464,7 +464,10 @@ SELECT 'Download PDF Summary'::DOWNLOAD_PDF, 'd7b1b36b-74b8-4c9f-863a-23efbe9ff5
 
 - **`SECTION`**: Groups subsequent cards/tables. Use `SELECT 'Section Title'::SECTION;`.
   - **Hiding Sections**: If a section query returns no rows (e.g., `WHERE FALSE`), the entire section is hidden.
+  - **Section Subtitles**: Can be paired with `::SUBTITLE` to display explanatory text below the section title (e.g., `SELECT 'My Section'::SECTION, 'This is my section'::SUBTITLE;`).
 - **`LABEL`**: Injects headers for cards or filters. Place right before the target card/filter query.
+  - **Card/Widget Subtitles**: Can be paired with `::SUBTITLE` to display explanatory text below the card label (e.g., `SELECT 'My Label'::LABEL, 'Explanation for chart'::SUBTITLE;`).
+- **`SUBTITLE`**: Adds extra explanation as text below a section title or a card label. Selected in the same query alongside a `::SECTION` or `::LABEL`.
 - **`PLACEHOLDER`**: Injects blank spaces in the grid layout to align cards vertically.
 - **`HEADER_IMAGE`**: Sets dashboard logo (URL or base64 URL) displayed on screens and every page of PDFs.
 - **`FOOTER_LINK`**: Displays a footer link on screens and PDFs (URLs or mailto).
@@ -472,23 +475,27 @@ SELECT 'Download PDF Summary'::DOWNLOAD_PDF, 'd7b1b36b-74b8-4c9f-863a-23efbe9ff5
 
 ##### Examples:
 ```sql
--- 1. Section Header and Conditional Hiding
-SELECT 'Revenue Metrics'::SECTION WHERE (SELECT sum(revenue) FROM daily_sales) > 0;
+-- 1. Section Header with Subtitle and Conditional Hiding
+SELECT 'Revenue Metrics'::SECTION, 'Overview of financial performance'::SUBTITLE
+WHERE (SELECT sum(revenue) FROM daily_sales) > 0;
 
--- 2. Labeling a Single Value Card
-SELECT 'Monthly Target'::LABEL;
+-- 2. Section Header with Subtitle
+SELECT 'My Section'::SECTION, 'This is my section'::SUBTITLE;
+
+-- 3. Labeling a Single Value Card or Chart with Subtitle
+SELECT 'My Label'::LABEL, 'Explanation for chart'::SUBTITLE;
 SELECT 50000 AS "Target";
 
--- 3. Injecting a Grid Placeholder to align cards
+-- 4. Injecting a Grid Placeholder to align cards
 SELECT 200 AS "This Week";
 SELECT ''::PLACEHOLDER;
 SELECT 150 AS "Last Week";
 
--- 4. Logo Header & Footer Link
+-- 5. Logo Header & Footer Link
 SELECT 'https://example.com/logo.png'::HEADER_IMAGE;
 SELECT 'https://example.com/support'::FOOTER_LINK;
 
--- 5. Auto Reload
+-- 6. Auto Reload
 SELECT (INTERVAL '5 minutes')::RELOAD;
 ```
 
