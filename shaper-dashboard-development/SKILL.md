@@ -72,6 +72,7 @@ Follow these guidelines to build clean, maintainable, and high-performing Shaper
 - **Top-Heavy Header Controls**: Keep filter components and global download buttons (CSV/PDF) clustered at the top of the file. This groups interactive components into a cohesive header. Only place interactive controls within individual sections on highly complex dashboards.
 - **Performance Optimization via Caching**: Define your filters first, then immediately cache the filtered subset of data into a temporary table using `CREATE TEMPORARY TABLE`. This ensures you only filter the dataset once, boosting query performance and avoiding repetitive `WHERE` clauses in subsequent chart queries.
 - **Clear Card Labels & Subtitles**: Precede most charts, metrics, and tables with a `LABEL` query to explain what the widget shows. Add a `SUBTITLE` to provide additional context or explanation below a section title or a card label.
+- **Single Records & Key-Value Pairs**: When a table has a single row, Shaper pivots the data. Use this to display a single record of data or a set of key-value pairs.
 - **Clean Axis Labels**: Visualizations look significantly cleaner without redundant axis labels. Omit axis labels by skipping the `AS alias` clause on axis or count columns when the data type or value is self-evident (e.g. date columns, counts).
 
 ---
@@ -167,6 +168,7 @@ Cast SQL expression output to custom Shaper types using `::TYPE` (e.g., `SELECT 
 #### 1. Tables (Default)
 Any query returning multiple rows and columns is rendered as a table. Column headers map to column aliases.
 Avoid using tables with many columns in layouts with multiple queries in a section.
+- **Single-Row Pivoting**: When a table has a single row, the data is automatically pivoted (displaying columns as rows). Use this to display a single record of data or a set of key-value pairs.
 - **`PERCENT`**: Renders a float/double between 0 and 1 as a percentage (e.g. `col::PERCENT`).
 - **`TREND`**: Shows a trend arrow up/down.
 
@@ -179,6 +181,13 @@ FROM (VALUES
   ('2024-01-02'::DATE, 'Sell', 120)
 );
 
+-- Single-Row Pivoted Table (Single record / Key-Value Pairs)
+SELECT
+  'Acme Corporation' AS "Organization",
+  'Enterprise' AS "Plan",
+  42 AS "Seats Used",
+  'Active' AS "Status";
+
 -- Table with Percent and Trend indicators
 SELECT
   date::DATE AS "Date",
@@ -189,7 +198,7 @@ FROM sales;
 ```
 
 #### 2. Single Value Card
-If a query returns exactly 1 row and 1 column, it is rendered as a single large metric card. Font size is auto-scaled to fit the screen.
+If a query returns exactly 1 row and 1 column, it is rendered as a single large metric card (queries returning 1 row and multiple columns are rendered as pivoted tables). Font size is auto-scaled to fit the screen.
 - **`PERCENT`**: Formats the value as a percentage.
 - **`COMPARE`**: Renders a comparison subtitle and trend indicator below the value.
 - **`TEXT_SMALL` / `TEXT_MEDIUM` / `TEXT_LARGE`**: Overrides the automatic scaling to make cards visually consistent.
@@ -217,7 +226,7 @@ Renders vertical or horizontal bars. Can be grouped or stacked.
 - **`CATEGORY`**: Groups data into categories and displays a legend. Setting to `NULL` or empty string hides that category from the legend (useful for selective coloring).
 - **`BARCHART_STACKED`**: Stacks categories on top of each other.
 - **`BARCHART_PERCENT` / `BARCHART_STACKED_PERCENT`**: Bounds the chart axis to 100% (values should be 0 to 1).
-- **`COLOR`**: Sets the color for a category or bar (hex/color name).
+- **`COLOR`**: Sets the color for a category or bar (hex/color name). When `CATEGORY` is not present, bars can be colored individually. If a uniform color is specified across rows, it applies to the series as a whole.
 
 ##### Examples:
 ```sql
@@ -233,6 +242,14 @@ FROM regional_revenue;
 SELECT month::XAXIS, ratio::BARCHART_STACKED_PERCENT, status::CATEGORY
 FROM project_status;
 
+-- Individual Bar Colors (without CATEGORY)
+SELECT
+  status::XAXIS,
+  count::BARCHART,
+  CASE status WHEN 'Done' THEN '#6cbc87' WHEN 'Blocked' THEN '#ee5674' ELSE '#ffd26a' END::COLOR
+FROM tasks
+GROUP BY status;
+
 -- Custom Category Colors and Hiding Specific Categories from Legend
 SELECT
   month::XAXIS,
@@ -247,13 +264,20 @@ Identical to Bar Charts but represents trends over time. Does not support horizo
 - **`XAXIS`**: Dimension/time column.
 - **`LINECHART` / `LINECHART_PERCENT`**: The numeric/percentage value column.
 - **`CATEGORY`**: Renders multiple lines.
-- **`COLOR`**: Category line colors.
+- **`COLOR`**: Category line colors. When `CATEGORY` is not present and a `COLOR` is provided, a uniform color applies to the line series, while individual point colors are also supported.
 - **`BAND_LOWER` / `BAND_UPPER`**: Displays a confidence band for a line. Column aliases can define labels (e.g. `Lower SD`, `Upper SD`). Set to `NULL` to hide the band for specific categories/lines.
 
 ##### Examples:
 ```sql
--- Standard Line Chart
-SELECT date::XAXIS, count::LINECHART FROM active_users;
+-- Standard Line Chart with uniform series color (without CATEGORY)
+SELECT date::XAXIS, count::LINECHART, '#19b2ee'::COLOR FROM active_users;
+
+-- Line Chart with individual point colors (without CATEGORY)
+SELECT
+  date::XAXIS,
+  latency::LINECHART,
+  CASE WHEN latency > 500 THEN '#ee5674' ELSE '#19b2ee' END::COLOR
+FROM response_times;
 
 -- Line Chart with categories and custom colors
 SELECT date::XAXIS, active_users::LINECHART, tier::CATEGORY, '#19b2ee'::COLOR
@@ -275,13 +299,20 @@ Visualizes data points plotted on X and Y axes, useful for showing correlations,
 - **`SCATTERPLOT`**: The numeric or INTERVAL value to plot.
 - **`SCATTERPLOT_PERCENT`**: Displays values as percentages (values should be between 0 and 1, chart axis bounded to 100%).
 - **`CATEGORY`**: Groups data points into multiple series with a legend.
-- **`COLOR`**: Assigns custom colors to categories or individual points.
+- **`COLOR`**: Assigns custom colors to categories or individual points. When `CATEGORY` is not present, individual points can have distinct colors using their row's `COLOR`.
 - Hover tooltips automatically show additional columns not used in the plot definition.
 
 ##### Examples:
 ```sql
 -- Basic Scatter Plot with time on X-axis
 SELECT ts::XAXIS, val::SCATTERPLOT
+FROM measurements;
+
+-- Scatter Plot with individual point colors (without CATEGORY)
+SELECT
+  ts::XAXIS,
+  val::SCATTERPLOT,
+  CASE WHEN val > 15 THEN '#ee5674' ELSE '#19b2ee' END::COLOR
 FROM measurements;
 
 -- Multi-category Scatter Plot with custom colors
@@ -470,7 +501,7 @@ SELECT 'Download PDF Summary'::DOWNLOAD_PDF, 'd7b1b36b-74b8-4c9f-863a-23efbe9ff5
 - **`SUBTITLE`**: Adds extra explanation as text below a section title or a card label. Selected in the same query alongside a `::SECTION` or `::LABEL`.
 - **`PLACEHOLDER`**: Injects blank spaces in the grid layout to align cards vertically.
 - **`HEADER_IMAGE`**: Sets dashboard logo (URL or base64 URL) displayed on screens and every page of PDFs.
-- **`FOOTER_LINK`**: Displays a footer link on screens and PDFs (URLs or mailto).
+- **`FOOTER_LINK`**: Displays a footer link on screens and PDFs (URLs or mailto). You can set the text displayed for a footer link using a column alias (e.g. `SELECT 'https://example.com/moreinfo'::FOOTER_LINK AS "Click for more information";`).
 - **`RELOAD`**: Sets auto-reload interval (TIMESTAMP or INTERVAL).
 
 ##### Examples:
@@ -493,7 +524,7 @@ SELECT 150 AS "Last Week";
 
 -- 5. Logo Header & Footer Link
 SELECT 'https://example.com/logo.png'::HEADER_IMAGE;
-SELECT 'https://example.com/support'::FOOTER_LINK;
+SELECT 'https://example.com/moreinfo'::FOOTER_LINK AS "Click for more information";
 
 -- 6. Auto Reload
 SELECT (INTERVAL '5 minutes')::RELOAD;
