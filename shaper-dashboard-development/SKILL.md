@@ -69,7 +69,7 @@ Follow these guidelines to build clean, maintainable, and high-performing Shaper
 - **Embedded Dashboard Security**: Embedding into host applications is the primary use case for Shaper dashboards. When embedding, security and data access control rely on variables preset in the JWT token (e.g. `tenant_id` or `allowed_orgs`). Preset embedding variables can be a **single string** or a **list of strings**. Always access these variables with `getvariable('variable_name')` and apply strict filtering in your base queries or temp tables using `=` for single strings or `IN` for lists of strings (`WHERE col IN getvariable('allowed_orgs')`) to ensure users can only access authorized data.
 - **Mandatory Re-Preview After Edits**: Every time you modify or update a dashboard file, always run `shaper validate` followed by `shaper preview` to generate a new preview. Never make changes to a dashboard without generating a fresh preview for the user to review.
 - **Dashboard Title**: Start your dashboard file with a `SECTION` query to establish a clear main header/title for the dashboard (optionally pair with `::SUBTITLE` for an explanatory subtitle).
-- **Top-Heavy Header Controls**: Keep filter components and global download buttons (CSV/PDF) clustered at the top of the file. This groups interactive components into a cohesive header. Only place interactive controls within individual sections on highly complex dashboards.
+- **Top-Heavy Header Controls**: Keep filter components and global download buttons (CSV/XLSX/JSON/PDF) clustered at the top of the file. This groups interactive components into a cohesive header. Only place interactive controls within individual sections on highly complex dashboards.
 - **Performance Optimization via Caching**: Define your filters first, then immediately cache the filtered subset of data into a temporary table using `CREATE TEMPORARY TABLE`. This ensures you only filter the dataset once, boosting query performance and avoiding repetitive `WHERE` clauses in subsequent chart queries.
 - **Clear Card Labels & Subtitles**: Precede most charts, metrics, and tables with a `LABEL` query to explain what the widget shows. Add a `SUBTITLE` to provide additional context or explanation below a section title or a card label.
 - **Single Records & Key-Value Pairs**: When a table has a single row, Shaper pivots the data. Use this to display a single record of data or a set of key-value pairs.
@@ -477,14 +477,17 @@ CREATE TEMP TABLE dataset AS (
 ### Downloads
 
 Render download buttons to trigger data extraction.
-- **`DOWNLOAD_CSV` / `DOWNLOAD_XLSX`**: Creates a download button for tabular data. The string cast defines the filename, and the column alias defines the button label. The next query defines the actual data returned.
+- **`DOWNLOAD_CSV` / `DOWNLOAD_XLSX` / `DOWNLOAD_JSON`**: Creates a download button for tabular data. The string cast defines the filename, and the column alias defines the button label. The next query defines the actual data returned.
 - **`DOWNLOAD_PDF`**: Triggers a PDF download of the dashboard layout.
   - **`ID`**: Download a *different* dashboard (using its UUID) instead of the current one. Applied filters are matched across dashboards.
 
 ##### Examples:
 ```sql
--- Tabular Data Downloads (CSV and XLSX)
+-- Tabular Data Downloads (CSV, XLSX, and JSON)
 SELECT concat('sales-report-', today())::DOWNLOAD_CSV AS "Export CSV";
+SELECT date, amount FROM daily_sales;
+
+SELECT concat('sales-report-', today())::DOWNLOAD_JSON AS "Export JSON";
 SELECT date, amount FROM daily_sales;
 
 -- PDF Download button targeting a different dashboard ID
