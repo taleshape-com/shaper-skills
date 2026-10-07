@@ -72,7 +72,7 @@ Follow these guidelines to build clean, maintainable, and high-performing Shaper
 - **Top-Heavy Header Controls**: Keep filter components and global download buttons (CSV/XLSX/JSON/PDF) clustered at the top of the file. This groups interactive components into a cohesive header. Only place interactive controls within individual sections on highly complex dashboards.
 - **Performance Optimization via Caching**: Define your filters first, then immediately cache the filtered subset of data into a temporary table using `CREATE TEMPORARY TABLE`. This ensures you only filter the dataset once, boosting query performance and avoiding repetitive `WHERE` clauses in subsequent chart queries.
 - **Clear Card Labels & Subtitles**: Precede most charts, metrics, and tables with a `LABEL` query to explain what the widget shows. Add a `SUBTITLE` to provide additional context or explanation below a section title or a card label.
-- **Single Records & Key-Value Pairs**: When a table has a single row, Shaper pivots the data. Use this to display a single record of data or a set of key-value pairs.
+- **Single Records & Key-Value Pairs**: Tables are not auto-pivoted on a single row to avoid unexpected layout shifts when queries happen to return only one row. To display a single record or key-value pairs, return a single `STRUCT`, `MAP`, or `JSON` object (e.g. `SELECT mysubquery FROM (SELECT ...) mysubquery;`).
 - **Clean Axis Labels**: Visualizations look significantly cleaner without redundant axis labels. Omit axis labels by skipping the `AS alias` clause on axis or count columns when the data type or value is self-evident (e.g. date columns, counts).
 
 ---
@@ -166,9 +166,8 @@ Each dashboard is a collection of SQL queries separated by `;`. All queries are 
 Cast SQL expression output to custom Shaper types using `::TYPE` (e.g., `SELECT 'Total Sales'::LABEL;`).
 
 #### 1. Tables (Default)
-Any query returning multiple rows and columns is rendered as a table. Column headers map to column aliases.
+Any query returning multiple columns is rendered as a table. Column headers map to column aliases.
 Avoid using tables with many columns in layouts with multiple queries in a section.
-- **Single-Row Pivoting**: When a table has a single row, the data is automatically pivoted (displaying columns as rows). Use this to display a single record of data or a set of key-value pairs.
 - **`PERCENT`**: Renders a float/double between 0 and 1 as a percentage (e.g. `col::PERCENT`).
 - **`TREND`**: Shows a trend arrow up/down.
 
@@ -181,13 +180,6 @@ FROM (VALUES
   ('2024-01-02'::DATE, 'Sell', 120)
 );
 
--- Single-Row Pivoted Table (Single record / Key-Value Pairs)
-SELECT
-  'Acme Corporation' AS "Organization",
-  'Enterprise' AS "Plan",
-  42 AS "Seats Used",
-  'Active' AS "Status";
-
 -- Table with Percent and Trend indicators
 SELECT
   date::DATE AS "Date",
@@ -197,8 +189,38 @@ SELECT
 FROM sales;
 ```
 
-#### 2. Single Value Card
-If a query returns exactly 1 row and 1 column, it is rendered as a single large metric card (queries returning 1 row and multiple columns are rendered as pivoted tables). Font size is auto-scaled to fit the screen.
+#### 2. Single Record / Key-Value Pairs
+To display a single record or a set of key-value pairs (displaying fields vertically rather than a horizontal table row), return a single `STRUCT`, `MAP`, or `JSON` object.
+- **Explicit Struct Conversion**: You can explicitly turn a query record into a struct by selecting the subquery alias:
+  ```sql
+  SELECT mysubquery FROM (SELECT ...) mysubquery;
+  ```
+- **MAP or JSON Object**: Returning a single `MAP` or `JSON` object also renders as a single record.
+
+##### Examples:
+```sql
+-- Single Record via Subquery Struct Conversion
+SELECT org FROM (
+  SELECT
+    'Acme Corporation' AS "Organization",
+    'Enterprise' AS "Plan",
+    42 AS "Seats Used",
+    'Active' AS "Status"
+) org;
+
+-- Single Record via Struct Literal
+SELECT {'Organization': 'Acme Corporation', 'Plan': 'Enterprise', 'Seats Used': 42, 'Status': 'Active'};
+
+-- Single Record via MAP
+SELECT MAP {
+  'Organization': 'Acme Corporation',
+  'Plan': 'Enterprise',
+  'Status': 'Active'
+};
+```
+
+#### 3. Single Value Card
+If a query returns exactly 1 row and 1 scalar column (excluding `STRUCT`, `MAP`, or `JSON` objects which render as single records), it is rendered as a single large metric card. Font size is auto-scaled to fit the screen.
 - **`PERCENT`**: Formats the value as a percentage.
 - **`COMPARE`**: Renders a comparison subtitle and trend indicator below the value.
 - **`TEXT_SMALL` / `TEXT_MEDIUM` / `TEXT_LARGE`**: Overrides the automatic scaling to make cards visually consistent.
@@ -219,7 +241,7 @@ SELECT 'Medium Text
 '::TEXT_MEDIUM AS "Label";
 ```
 
-#### 3. Bar Chart
+#### 4. Bar Chart
 Renders vertical or horizontal bars. Can be grouped or stacked.
 - **`XAXIS` / `YAXIS`**: X-axis for vertical charts, Y-axis for horizontal charts (dimensions).
 - **`BARCHART`**: The numeric/interval value defining the length of the bar.
@@ -259,7 +281,7 @@ SELECT
 FROM tasks;
 ```
 
-#### 4. Line Chart
+#### 5. Line Chart
 Identical to Bar Charts but represents trends over time. Does not support horizontal `YAXIS` or stacked forms.
 - **`XAXIS`**: Dimension/time column.
 - **`LINECHART` / `LINECHART_PERCENT`**: The numeric/percentage value column.
@@ -293,7 +315,7 @@ SELECT
 FROM performance_metrics;
 ```
 
-#### 5. Scatter Plot
+#### 6. Scatter Plot
 Visualizes data points plotted on X and Y axes, useful for showing correlations, distributions, and clusters. Supports multiple categories with custom colors.
 - **`XAXIS` / `YAXIS`**: Dimension column (VARCHAR, TIMESTAMP, TIME, or numeric). Often a time dimension for XAXIS.
 - **`SCATTERPLOT`**: The numeric or INTERVAL value to plot.
@@ -332,7 +354,7 @@ SELECT date::XAXIS, conversion_rate::SCATTERPLOT_PERCENT, segment::CATEGORY
 FROM daily_metrics;
 ```
 
-#### 6. Box Plots
+#### 7. Box Plots
 Visualizes distribution of a dataset. Calculated via the aggregate `BOXPLOT()` function.
 - **`BOXPLOT(val)`**: Renders boxes showing min, max, median, Q1, Q3.
 - **Outliers**: Pass `outlier_info := MAP {'label': col}` to show outlier points on hover with the custom metadata. Pass an empty map `MAP {}` to just show outlier points without custom info. Outliers are defined as values falling outside the 1.5 IQR.
@@ -350,7 +372,7 @@ FROM regional_data
 GROUP BY region;
 ```
 
-#### 7. Annotations
+#### 8. Annotations
 Draw mark lines on Bar/Line charts. Place annotation queries *before* the main chart query.
 - **`XLINE`**: Vertical line on the X-axis.
 - **`YLINE`**: Horizontal line on the Y-axis.
@@ -367,7 +389,7 @@ SELECT 85::YLINE, 'Target Goal'::LABEL;
 SELECT month::XAXIS, revenue::BARCHART FROM monthly_revenue;
 ```
 
-#### 8. Gauge
+#### 9. Gauge
 Shows progress towards a goal or status distribution.
 - **`GAUGE` / `GAUGE_PERCENT`**: Renders progress value.
 - **`RANGE`**: Custom range intervals, e.g. `[0, 50, 100]::RANGE`.
@@ -390,7 +412,7 @@ SELECT
   ['Poor', 'Fair', 'Excellent']::LABELS;
 ```
 
-#### 9. Pie Chart & Donut Chart
+#### 10. Pie Chart & Donut Chart
 Shows category distributions. Donut charts display the total aggregate sum in the center.
 - **`PIECHART` / `DONUTCHART`**: Value column (numeric).
 - **`PIECHART_PERCENT` / `DONUTCHART_PERCENT`**: Percentage columns.
