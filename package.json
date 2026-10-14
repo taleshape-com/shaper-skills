@@ -1,0 +1,35 @@
+{
+  "name": "shaper-skills",
+  "version": "0.1.0",
+  "description": "Agent skills for Shaper environment setup, dashboard development, and task development",
+  "bin": {
+    "shaper-skills": "./bin/cli.js"
+  },
+  "scripts": {
+    "validate": "claude plugin validate --strict ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taleshape-com/shaper-skills.git"
+  },
+  "keywords": [
+    "agent-skills",
+    "skills",
+    "claude-code",
+    "claude-plugin",
+    "cursor",
+    "codex",
+    "duckdb",
+    "shaper",
+    "dashboards"
+  ],
+  "author": {
+    "name": "Taleshape",
+    "url": "https://taleshape.com"
+  },
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/taleshape-com/shaper-skills/issues"
+  },
+  "homepage": "https://taleshape.com"
+}

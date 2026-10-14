@@ -6,16 +6,100 @@ Shaper is a dashboarding tool where dashboards are defined as SQL files and run 
 
 ## Install
 
-Simply copy the skills into your repository at the following location depending on your agent.
+You can install Shaper skills automatically using the **Claude Code Plugin**, the **`npx skills`** CLI (supporting Cursor, Codex, Gemini, Antigravity, OpenCode, and others), or manually.
 
-For example:
-```sh
-mkdir -p .claude/skills
-git clone git@github.com:taleshape-com/shaper-skills.git /tmp/shaper-skills
-mv /tmp/shaper-skills/* .claude/skills/
+### Option 1: Claude Code Plugin (Recommended for Claude Code)
+
+Add this repository as a marketplace and install the full plugin suite or only the specific skill you need:
+
+#### Inside a Claude Code session:
+```text
+# 1. Register the marketplace (run once)
+/plugin marketplace add taleshape-com/shaper-skills
+
+# 2. Install all skills:
+/plugin install shaper@shaper-skills
+
+# OR install only a single skill:
+/plugin install shaper-dashboard-development@shaper-skills
+/plugin install shaper-setup@shaper-skills
+/plugin install shaper-task-development@shaper-skills
 ```
 
-| Agent       | Location          |
+#### From your terminal:
+```sh
+claude plugin marketplace add taleshape-com/shaper-skills
+
+# Install all skills:
+claude plugin install shaper@shaper-skills
+
+# OR install only a single skill:
+claude plugin install shaper-dashboard-development@shaper-skills
+```
+
+#### Team / Repository configuration:
+To automatically enable skills for everyone working in a repository, configure `.claude/settings.json`.
+
+**To install only one specific skill (e.g. dashboard development):**
+```json
+{
+  "extraKnownMarketplaces": {
+    "shaper-skills": {
+      "source": {
+        "source": "github",
+        "repo": "taleshape-com/shaper-skills"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "shaper-dashboard-development@shaper-skills": true
+  }
+}
+```
+
+*(To install all three skills instead, set `"shaper@shaper-skills": true` in `enabledPlugins`.)*
+
+---
+
+### Option 2: `npx skills` (Recommended for Other Agents)
+
+Use the open agent skills CLI ([skills.sh](https://skills.sh)) to automatically discover and install Shaper skills into your project or globally across your machine:
+
+```sh
+# Install all skills into your project (auto-detects installed agents)
+npx skills add taleshape-com/shaper-skills
+
+# OR install only a single skill (e.g. dashboard development)
+npx skills add taleshape-com/shaper-skills --skill shaper-dashboard-development
+
+# Install globally across all projects
+npx skills add taleshape-com/shaper-skills -g
+
+# Target specific agents (e.g. Cursor, Codex, Claude Code)
+npx skills add taleshape-com/shaper-skills -a cursor -a codex
+```
+
+Supported agents include **Cursor**, **Codex CLI**, **Gemini CLI**, **Antigravity**, **OpenCode**, **Claude Code**, **Windsurf**, **GitHub Copilot**, and **Qwen Code**.
+
+Alternatively, you can run the direct installer:
+```sh
+npx github:taleshape-com/shaper-skills
+```
+
+---
+
+### Option 3: Manual Installation (Fallback)
+
+If you prefer to install without package managers, copy the skills directly into your repository at the appropriate location for your agent:
+
+```sh
+mkdir -p .agents/skills
+git clone git@github.com:taleshape-com/shaper-skills.git /tmp/shaper-skills
+cp -r /tmp/shaper-skills/shaper-* .agents/skills/
+rm -rf /tmp/shaper-skills
+```
+
+| Agent       | Target Location   |
 |-------------|-------------------|
 | Claude Code | `.claude/skills/` |
 | Cursor      | `.agents/skills/` |
