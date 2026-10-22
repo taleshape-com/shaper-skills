@@ -11,7 +11,7 @@
       "name": "shaper",
       "source": "./",
       "description": "All Shaper skills: environment setup, dashboard development, and task development",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "Taleshape",
         "url": "https://taleshape.com"
@@ -21,7 +21,7 @@
       "name": "shaper-dashboard-development",
       "source": "./shaper-dashboard-development",
       "description": "Build, validate, preview, and organize Shaper dashboards using DuckDB SQL",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "Taleshape",
         "url": "https://taleshape.com"
@@ -31,7 +31,7 @@
       "name": "shaper-setup",
       "source": "./shaper-setup",
       "description": "Ensure Shaper CLI is installed, configure shaper.json, authenticate, and safely pull remote dashboards/tasks",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "Taleshape",
         "url": "https://taleshape.com"
@@ -41,7 +41,7 @@
       "name": "shaper-task-development",
       "source": "./shaper-task-development",
       "description": "Create, schedule, update, and manage startup and background tasks using DuckDB SQL",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "Taleshape",
         "url": "https://taleshape.com"
