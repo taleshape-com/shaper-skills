@@ -72,6 +72,9 @@ Follow these guidelines to build clean, maintainable, and high-performing Shaper
 - **Top-Heavy Header Controls**: Keep filter components and global download buttons (CSV/XLSX/JSON/PDF) clustered at the top of the file. This groups interactive components into a cohesive header. Only place interactive controls within individual sections on highly complex dashboards.
 - **Performance Optimization via Caching**: Define your filters first, then immediately cache the filtered subset of data into a temporary table using `CREATE TEMPORARY TABLE`. This ensures you only filter the dataset once, boosting query performance and avoiding repetitive `WHERE` clauses in subsequent chart queries.
 - **Clear Card Labels & Subtitles**: Precede most charts, metrics, and tables with a `LABEL` query to explain what the widget shows. Add a `SUBTITLE` to provide additional context or explanation below a section title or a card label.
+- **Contextual Tooltips**: Use `::TOOLTIP` to attach an info icon with explanatory tooltips to section headers and card labels. Tooltips keep the UI uncluttered while providing deeper metric definitions, calculation rules, or documentation links on hover or click.
+- **Card Drill-Downs and Links**: Use `::LINK` (same tab) or `::LINK_NEWTAB` (new tab) on metric cards or charts to enable clickable drill-downs to external tools, documentation, or other dashboards.
+- **Rich Markdown Links**: Embed clickable markdown links (`[text](url)` or `[text](url){target="_blank"}`) in subtitles, tooltips, single-value cards, and table cells.
 - **Single Records & Key-Value Pairs**: Tables are not auto-pivoted on a single row to avoid unexpected layout shifts when queries happen to return only one row. To display a single record or key-value pairs, return a single `STRUCT`, `MAP`, or `JSON` object (e.g. `SELECT mysubquery FROM (SELECT ...) mysubquery;`).
 - **Clean Axis Labels**: Visualizations look significantly cleaner without redundant axis labels. Omit axis labels by skipping the `AS alias` clause on axis or count columns when the data type or value is self-evident (e.g. date columns, counts).
 
@@ -521,42 +524,94 @@ SELECT 'Download PDF Summary'::DOWNLOAD_PDF, 'd7b1b36b-74b8-4c9f-863a-23efbe9ff5
 - **`SECTION`**: Groups subsequent cards/tables. Use `SELECT 'Section Title'::SECTION;`.
   - **Hiding Sections**: If a section query returns no rows (e.g., `WHERE FALSE`), the entire section is hidden.
   - **Section Subtitles**: Can be paired with `::SUBTITLE` to display explanatory text below the section title (e.g., `SELECT 'My Section'::SECTION, 'This is my section'::SUBTITLE;`).
+  - **Section Tooltips**: Can be paired with `::TOOLTIP` to display an info icon with a tooltip next to the section title (e.g., `SELECT 'My Section'::SECTION, 'More info'::TOOLTIP;`).
 - **`LABEL`**: Injects headers for cards or filters. Place right before the target card/filter query.
   - **Card/Widget Subtitles**: Can be paired with `::SUBTITLE` to display explanatory text below the card label (e.g., `SELECT 'My Label'::LABEL, 'Explanation for chart'::SUBTITLE;`).
-- **`SUBTITLE`**: Adds extra explanation as text below a section title or a card label. Selected in the same query alongside a `::SECTION` or `::LABEL`.
+  - **Card/Widget Tooltips**: Can be paired with `::TOOLTIP` to display an info icon next to the card title (e.g., `SELECT 'My Label'::LABEL, 'Metric definition'::TOOLTIP;`).
+- **`SUBTITLE`**: Adds extra explanation as text below a section title or a card label. Selected in the same query alongside a `::SECTION` or `::LABEL`. Supports markdown links, bare URLs, and multiline text.
+- **`TOOLTIP`**: Adds an informative tooltip icon next to a section title or a card label.
+  - **Pairing**: Selected in the same query alongside `::SECTION` or `::LABEL` (can be combined with `::SUBTITLE`, `::CLASS`, and `::LINK` in any order).
+  - **Hover**: Displays after a 200ms delay to prevent flickering.
+  - **Click to pin**: Clicking the icon pins the tooltip open until clicking outside or pressing <kbd>Esc</kbd>.
+  - **Keyboard accessibility**: Tab to focus the anchor icon, press <kbd>Enter</kbd> or <kbd>Space</kbd> to toggle open/close, and <kbd>Esc</kbd> to dismiss.
+  - **Content formatting**: Supports markdown links (`[text](url)`), bare URLs, and multiline text.
+  - **Custom styling**: Target with CSS classes `.shaper-tooltip-anchor` (trigger icon/button) and `.shaper-tooltip` (popover container).
+- **`LINK`, `LINK_NEWTAB`**: Turns an entire card container into a clickable navigation link by casting a URL string.
+  - `::LINK`: Navigates in the same browser tab.
+  - `::LINK_NEWTAB`: Opens in a new tab (`target="_blank" rel="noopener noreferrer"`).
+  - **Pairing**: Can be combined with `::LABEL`, `::SUBTITLE`, `::TOOLTIP`, and `::CLASS` in a label query, or selected standalone (e.g., `SELECT 'https://example.com'::LINK;`) directly preceding the card.
+  - **Pointer cursor**: Automatically applies `cursor: pointer` to chart and table cards.
+  - **Interaction preservation**: Clicks on interactive controls inside the card (such as fullscreen expand or chart/table CSV/PNG download buttons) do not trigger card navigation.
+  - **Fullscreen safety**: Automatically disables card navigation while expanded in fullscreen mode so users can inspect card data without accidental redirection.
 - **`CLASS`**: Adds one or more custom CSS classes (comma-separated) to a section or a card. Can be selected in the same query alongside a `::SECTION` or `::LABEL`, or specified standalone as `SELECT 'my-class'::CLASS;` preceding a card or section.
 - **`PLACEHOLDER`**: Injects blank spaces in the grid layout to align cards vertically.
 - **`HEADER_IMAGE`**: Sets dashboard logo (URL or base64 URL) displayed on screens and every page of PDFs.
 - **`FOOTER_LINK`**: Displays a footer link on screens and PDFs (URLs or mailto). You can set the text displayed for a footer link using a column alias (e.g. `SELECT 'https://example.com/moreinfo'::FOOTER_LINK AS "Click for more information";`).
 - **`RELOAD`**: Sets auto-reload interval (TIMESTAMP or INTERVAL).
 
+#### Links and Markdown Syntax
+
+Shaper supports clickable links across multiple dashboard elements:
+- **Card Containers**: Whole card navigation via `::LINK` and `::LINK_NEWTAB`.
+- **Subtitles & Tooltips**: Section/card subtitles (`::SUBTITLE`) and tooltips (`::TOOLTIP`).
+- **Table Cells**: String/text columns in table queries.
+- **Single Values**: Text strings in single-value cards.
+- **Footer**: Dashboard footer via `::FOOTER_LINK`.
+
+Supported link formats:
+1. **Markdown Links**: `[Link Text](https://example.com)` (opens in same tab by default).
+2. **Extended Attributes**: `[Link Text](https://example.com){target="_blank"}` or `[Link Text](https://example.com){target="_blank" rel="noopener noreferrer"}` to open in a new tab.
+3. **Bare URLs**: Plain URLs (e.g., `https://example.com`) are automatically detected and rendered as clickable links.
+
 ##### Examples:
 ```sql
--- 1. Section Header with Subtitle and Conditional Hiding
-SELECT 'Revenue Metrics'::SECTION, 'Overview of financial performance'::SUBTITLE
+-- 1. Section Header with Subtitle, Tooltip, and Conditional Hiding
+SELECT
+  'Revenue Metrics'::SECTION,
+  'Overview of financial performance'::SUBTITLE,
+  'Net revenue after refunds and taxes. See [finance docs](https://example.com/finance).'::TOOLTIP
 WHERE (SELECT sum(revenue) FROM daily_sales) > 0;
 
--- 2. Section Header with Subtitle and Custom Classes
-SELECT 'My Section'::SECTION, 'This is my section'::SUBTITLE, 'highlight-section'::CLASS;
+-- 2. Section Header with Subtitle, Tooltip, and Custom Classes
+SELECT
+  'My Section'::SECTION,
+  'This is my section'::SUBTITLE,
+  'Detailed section explanation'::TOOLTIP,
+  'highlight-section'::CLASS;
 
--- 3. Labeling a Single Value Card or Chart with Subtitle and Custom Classes
-SELECT 'My Label'::LABEL, 'Explanation for chart'::SUBTITLE, 'featured-card'::CLASS;
+-- 3. Labeling a Single Value Card with Subtitle, Tooltip, and Custom Classes
+SELECT
+  'My Label'::LABEL,
+  'Explanation for chart'::SUBTITLE,
+  'Calculated using 30-day moving average. [Learn more](https://docs.taleshape.com).'::TOOLTIP,
+  'featured-card'::CLASS;
 SELECT 50000 AS "Target";
 
--- 4. Custom Classes on a Card without Label
+-- 4. Clickable Card Link (same tab or new tab)
+SELECT
+  'User Growth'::LABEL,
+  'Click card to view detailed breakdown'::SUBTITLE,
+  'https://example.com/reports/growth'::LINK_NEWTAB;
+SELECT 1200 AS "Active Users";
+
+-- 5. Standalone Card Link without Label
+SELECT 'https://example.com/reports'::LINK;
+SELECT 1::XAXIS, 20::BARCHART;
+
+-- 6. Custom Classes on a Card without Label
 SELECT 'highlight-card'::CLASS;
 SELECT 25000 AS "Secondary Metric";
 
--- 5. Injecting a Grid Placeholder to align cards
+-- 7. Injecting a Grid Placeholder to align cards
 SELECT 200 AS "This Week";
 SELECT ''::PLACEHOLDER;
 SELECT 150 AS "Last Week";
 
--- 6. Logo Header & Footer Link
+-- 8. Logo Header & Footer Link
 SELECT 'https://example.com/logo.png'::HEADER_IMAGE;
 SELECT 'https://example.com/moreinfo'::FOOTER_LINK AS "Click for more information";
 
--- 7. Auto Reload
+-- 9. Auto Reload
 SELECT (INTERVAL '5 minutes')::RELOAD;
 ```
 
