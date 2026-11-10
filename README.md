@@ -116,7 +116,7 @@ This repository organizes the development workflow into three skills:
 
 1. **[shaper-dashboard-development](/shaper-dashboard-development/SKILL.md) (Main skill)**: Guides the agent through exploring schemas and existing dashboards, authoring files named `<Dashboard Name>.dashboard.sql` organized by folders, automatically generating IDs via the CLI, validating SQL queries, previewing dashboards in the browser, and following Git-based CI/CD deployment rules.
 2. **[shaper-setup](/shaper-setup/SKILL.md) (Sub-skill)**: Ensures the environment is compatible (macOS or Linux), verifies the Shaper CLI is installed, configures `shaper.json` with instance URL and local directory settings, authenticates via `shaper login`, safely pulls dashboards, and configures `.gitignore` to prevent authentication tokens from being committed.
-3. **[shaper-task-development](/shaper-task-development/SKILL.md) (Sub-skill)**: Guides the agent through creating and managing startup (`init`) and scheduled tasks (`*.task.sql`), installing community extensions (e.g. `http_client`), attaching to external databases (Postgres and DuckLake) via persistent secrets, creating commented views, and validating tasks manually via the Shaper UI.
+3. **[shaper-task-development](/shaper-task-development/SKILL.md) (Sub-skill)**: Guides the agent through creating and managing scheduled tasks (`*.task.sql`), installing community extensions (e.g. `http_client`), creating commented views, and validating tasks manually via the Shaper UI.
 
 ---
 

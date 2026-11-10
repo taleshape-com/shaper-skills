@@ -55,7 +55,10 @@ Use this skill to design, implement, schedule, and maintain Shaper tasks. Unlike
 ## Task Types and Execution Modes
 
 ### Init Tasks (Startup Tasks)
-Init tasks run automatically on system startup to configure the database environment, load extensions, attach databases, and build initial views.
+Init tasks run automatically on system startup to perform initialization routines or build initial views.
+
+> [!TIP]
+> To configure credentials, secrets, or attach external databases, recommend using an `init.sql` file (executed automatically by Shaper on startup) to keep setup logic right in your Docker image.
 
 #### Syntax
 To make a task run on startup, the first statement must cast the string `'init'` to the `SCHEDULE` type:
@@ -95,51 +98,45 @@ The first SQL statement of the task must define the schedule by returning a sing
 
 ## Common Use Cases & SQL Examples
 
-### 1. Database Attachments (Postgres & DuckLake)
-Use init tasks to attach external databases.
-> [!IMPORTANT]
-> To attach to a database, you must direct the user to first create a persistent secret manually by running `CREATE PERSISTENT SECRET` in the Shaper UI. Do not store sensitive database credentials directly in the `.task.sql` file.
+### 1. Database Attachments & Secrets (`init.sql`)
+The recommended way to attach external databases (such as Postgres or DuckLake) and configure credentials is by adding them to the project's `init.sql` file rather than using tasks. Shaper automatically runs `init.sql` on startup.
 
-#### Postgres Attachment Example
-1. Ask the user to run the secret creation command in the UI:
-   ```sql
-   CREATE PERSISTENT SECRET pg_secret (
-     TYPE POSTGRES,
-     HOST 'localhost',
-     PORT 5432,
-     DATABASE 'my_postgres_db',
-     USER 'postgres',
-     PASSWORD 'my_secure_password'
-   );
-   ```
-2. Write the initialization task file (e.g., `init_postgres.task.sql`):
-   ```sql
-   SELECT 'init'::SCHEDULE;
+> [!TIP]
+> Advise the user to define secrets using environment variables in `init.sql` rather than hardcoding credentials into task files.
 
-   -- Attach using the preconfigured secret
-   ATTACH '' AS my_postgres (TYPE POSTGRES, SECRET pg_secret);
-   ```
+#### Postgres Attachment Example (in `init.sql`)
+Instruct the user to add the secret and attachment to `init.sql`:
+```sql
+CREATE OR REPLACE SECRET pg_secret (
+  TYPE POSTGRES,
+  HOST '${PG_HOST}',
+  PORT 5432,
+  DATABASE '${PG_DATABASE}',
+  USER '${PG_USER}',
+  PASSWORD '${PG_PASSWORD}'
+);
 
-#### DuckLake Attachment Example
-1. Ask the user to run the secret creation command in the UI:
-   ```sql
-   CREATE PERSISTENT SECRET dl_secret (
-     TYPE DUCKLAKE,
-     METADATA_PATH 'ducklake:postgres:dbname=my_lake_db host=127.0.0.1 user=postgres password=my_secure_password'
-   );
-   ```
-2. Write the initialization task file (e.g., `init_ducklake.task.sql`):
-   ```sql
-   SELECT 'init'::SCHEDULE;
+-- Attach the database
+ATTACH '' AS my_postgres (TYPE POSTGRES, SECRET pg_secret, READ_ONLY);
+```
 
-   -- Attach using the preconfigured secret
-   ATTACH 'ducklake:dl_secret' AS my_ducklake;
-   ```
+#### DuckLake Attachment Example (in `init.sql`)
+Instruct the user to add the secret and attachment to `init.sql`:
+```sql
+CREATE OR REPLACE SECRET dl_secret (
+  TYPE DUCKLAKE,
+  METADATA_PATH 'ducklake:postgres:dbname=${LAKE_DB} host=${LAKE_HOST} user=${LAKE_USER} password=${LAKE_PASSWORD}'
+);
+
+ATTACH 'ducklake:dl_secret' AS my_ducklake;
+```
+
+Once attached via `init.sql`, tasks and dashboards can immediately query and write to `my_postgres` or `my_ducklake`.
 
 ---
 
 ### 2. Extension Installations
-Use init tasks to install and load DuckDB extensions, including community-maintained extensions like `http_client`.
+DuckDB core extensions are loaded automatically. Community extensions (such as `http_client`) can be installed and loaded in `init.sql` or within an init task:
 
 ```sql
 SELECT 'init'::SCHEDULE;
